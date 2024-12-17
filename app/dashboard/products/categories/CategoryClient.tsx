@@ -4,45 +4,44 @@ import React, { useState } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import { supabase } from '@/utils/supabase';
 
-interface Category {
+interface CategoryData {
   id: number;
-  category_name: string;
+  name: string;
+  description?: string;
 }
 
 interface Props {
-  initialCategories: Category[];
+  initialCategories: CategoryData[];
 }
 
 export default function CategoryClient({ initialCategories }: Props) {
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [categories, setCategories] = useState<CategoryData[]>(initialCategories);
   const [newCategory, setNewCategory] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
-    if (!newCategory.trim()) {
-      setError('카테고리명을 입력해주세요.');
-      return;
-    }
+    const data = { 
+      id: 0,
+      name: newCategory,
+      description: ''
+    };
 
     try {
-      const { data, error: submitError } = await supabase
+      const { data: categoryData, error: submitError } = await supabase
         .from('product_categories')
-        .insert([{ category_name: newCategory.trim() }])
+        .insert([{ category_name: data.name, description: data.description }])
         .select()
         .single();
 
       if (submitError) throw submitError;
 
-      setCategories([...categories, data]);
+      setCategories([...categories, categoryData]);
       setNewCategory('');
       setError('');
-    } catch (err: any) {
-      if (err.code === '23505') {
-        setError('이미 존재하는 카테고리입니다.');
-      } else {
-        setError('카테고리 추가 중 오류가 발생했습니다.');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Error:', error.message);
       }
     }
   };
@@ -77,7 +76,7 @@ export default function CategoryClient({ initialCategories }: Props) {
               {categories.map(category => (
                 <React.Fragment key={category.id}>
                   <div className="px-4 py-2 bg-gray-50 rounded">
-                    {category.category_name}
+                    {category.name}
                   </div>
                   <button
                     onClick={() => handleDelete(category.id)}
@@ -101,7 +100,7 @@ export default function CategoryClient({ initialCategories }: Props) {
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="카테고리명 입력"
+                  placeholder="카��고리명 입력"
                 />
                 <button
                   type="submit"

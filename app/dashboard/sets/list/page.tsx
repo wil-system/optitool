@@ -1,6 +1,7 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
+import useSWR from 'swr';
 
 interface SetProduct {
   set_id: string;
@@ -95,11 +96,7 @@ export default function SetListPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const PAGE_SIZE = 100;
 
-  useEffect(() => {
-    fetchSets();
-  }, [currentPage]);
-
-  const fetchSets = async () => {
+  const fetchSets = useCallback(async () => {
     try {
       setIsLoading(true);
       const activeFields = Object.entries(searchFields)
@@ -128,7 +125,11 @@ export default function SetListPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentPage, searchTerm, searchFields]);
+
+  useEffect(() => {
+    fetchSets();
+  }, [fetchSets]);
 
   const handleSearch = () => {
     setCurrentPage(0);
@@ -219,6 +220,8 @@ export default function SetListPage() {
     }
   };
 
+  if (isLoading) return <div>로딩 중...</div>;
+  
   return (
     <DashboardLayout>
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
@@ -245,7 +248,7 @@ export default function SetListPage() {
                     onChange={() => handleSearchFieldChange('set_name')}
                     className="form-checkbox h-4 w-4 text-blue-600"
                   />
-                  <span className="ml-2">세트명</span>
+                  <span className="ml-2">세트��</span>
                 </label>
               </div>
               <div className="relative">
@@ -276,7 +279,7 @@ export default function SetListPage() {
             </div>
           </div>
 
-          {/* 테이블 */}
+          {/* 테블 */}
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>

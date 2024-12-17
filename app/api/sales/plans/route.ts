@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
 import { format } from 'date-fns';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const now = new Date();
     const kstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));

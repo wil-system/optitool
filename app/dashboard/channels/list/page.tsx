@@ -1,6 +1,7 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
+import useSWR from 'swr';
 
 interface SalesChannel {
   channel_code: string;
@@ -113,11 +114,10 @@ export default function ChannelListPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const PAGE_SIZE = 100;
 
-  useEffect(() => {
-    fetchChannels();
-  }, [currentPage]);
+  const fetcher = (url: string) => fetch(url).then(res => res.json());
+  const { data, isLoading: _ } = useSWR('/api/channels', fetcher);
 
-  const fetchChannels = async () => {
+  const fetchChannels = useCallback(async () => {
     try {
       setIsLoading(true);
       const activeFields = Object.entries(searchFields)
@@ -146,7 +146,11 @@ export default function ChannelListPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentPage, searchTerm, searchFields]);
+
+  useEffect(() => {
+    fetchChannels();
+  }, [fetchChannels]);
 
   const handleSearch = () => {
     setCurrentPage(0);

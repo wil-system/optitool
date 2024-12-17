@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import { format } from 'date-fns';
-import { debug } from 'console';
 import Modal from '@/app/components/common/Modal';
 
 interface Props {
@@ -29,7 +28,7 @@ interface SalesPlan {
   season: string;
   plan_date: string;
   plan_time: string;
-  channel_code: string;
+  channel_code?: string;
   channel_name: string;
   channel_detail: string;
   product_category: string;
@@ -40,17 +39,45 @@ interface SalesPlan {
   target_quantity: number;
 }
 
+interface PerformanceData {
+  salesPlanId: number;
+  performance: number;
+  achievementRate: number;
+  // ... 다른 필요한 필드들
+}
+
+interface SalesPerformance {
+  id: number;
+  sales_plan_id: number;
+  performance: number;
+  achievement_rate: number;
+  temperature: number;
+  created_at: string;
+  updated_at: string;
+  plan_date: string;
+  plan_time: string;
+  season: string;
+  channel_name: string;
+  channel_detail: string;
+  product_category: string;
+  product_name: string;
+  set_id: string;
+  sale_price: number;
+  target_quantity: number;
+  commission_rate: number;
+}
+
 export default function SalesPlanListClient({ initialData, channels }: Props) {
   const itemsPerPage = 10;
   
-  const [data, setData] = useState<SalesPlan[]>([]);
+  const [data, setData] = useState<SalesPerformance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<SalesPlan | null>(null);
+  const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<SalesPerformance | null>(null);
   const [formData, setFormData] = useState<FormData>({
     performance: 0,
     achievementRate: 0,
@@ -202,11 +229,11 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
     }
   };
 
-  const handleRowClick = (plan: SalesPlan) => {
-    setSelectedRowId(plan.id === selectedRowId ? null : plan.id);
+  const handleRowClick = (plan: SalesPerformance) => {
+    setSelectedRowId(Number(plan.id) === selectedRowId ? null : Number(plan.id));
   };
 
-  const handleRegisterClick = (plan: SalesPlan, e: React.MouseEvent) => {
+  const handleRegisterClick = (plan: SalesPerformance, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedPlan(plan);
     setFormData({
@@ -225,7 +252,7 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
   };
 
   const handleSubmit = async () => {
-    if (!formData.performance) {
+    if (!selectedPlan || !formData.performance) {
       alert('실적을 입력해주세요.');
       return;
     }
@@ -237,8 +264,8 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          salesPlanId: selectedPlan?.id,
-          ...formData
+          ...formData,
+          salesPlanId: String(selectedPlan.id)
         })
       });
 
@@ -276,7 +303,7 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6 flex justify-between items-center border-b border-gray-200">
             <h3 className="text-lg leading-6 font-medium text-gray-900">
-              판매실적 등록
+              판매 등록
             </h3>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
@@ -481,7 +508,7 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
                     />
                   </div>
                   <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
-                    <label className="block text-sm font-medium text-gray-700 mb-1 text-center">당일온도 (°C)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 text-center">당일온도 (��C)</label>
                     <input
                       type="number"
                       step="0.1"

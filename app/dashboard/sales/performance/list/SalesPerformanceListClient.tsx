@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
-import { format } from 'date-fns';
 
 interface Props {
   initialData: any[];
@@ -10,29 +9,21 @@ interface Props {
 }
 
 interface SalesPerformance {
-  id: string;
-  sales_plan_id: string;
+  set_id: any;
+  product_name: any;
+  product_category: any;
+  channel_detail: any;
+  channel_name: any;
+  season: any;
+  id: number;
+  sales_plan_id: number;
   performance: number;
   achievement_rate: number;
   temperature: number;
-  xs85: number;
-  s90: number;
-  m95: number;
-  l100: number;
-  xl105: number;
-  xxl110: number;
-  xxxl120: number;
   created_at: string;
   updated_at: string;
-  season: string;
-  plan_date: string;
-  plan_time: string;
-  channel_code: string;
-  channel_name: string;
-  channel_detail: string;
-  product_category: string;
-  product_name: string;
-  set_id: string;
+  plan_date: string | null;
+  plan_time: string | null;
   target_quantity: number;
 }
 
@@ -40,9 +31,9 @@ type SearchFilterKey = 'season' | 'channel' | 'channelDetail' | 'category' | 'pr
 
 export default function SalesPerformanceListClient({ initialData, channels }: Props) {
   const itemsPerPage = 10;
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<SalesPerformance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
@@ -81,7 +72,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
       }
     } catch (err) {
       console.error('Error fetching data:', err);
-      setError(err instanceof Error ? err.message : '데이터를 불러오는 중 오류가 발생했습니다.');
+      setError(err instanceof Error ? err : null);
       setData([]);
     } finally {
       setLoading(false);
@@ -101,14 +92,14 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
   const filteredData = data.filter(item => {
     if (appliedSearchTerm === '') return true;
     
-    const searchValue = appliedSearchTerm.toLowerCase();
+    const searchValue = appliedSearchTerm.toLowerCase().trim();
     return (
-      (searchFilters.season.checked && item.season?.toLowerCase().includes(searchValue)) ||
-      (searchFilters.channel.checked && item.channel_name?.toLowerCase().includes(searchValue)) ||
-      (searchFilters.channelDetail.checked && item.channel_detail?.toLowerCase().includes(searchValue)) ||
-      (searchFilters.category.checked && item.product_category?.toLowerCase().includes(searchValue)) ||
-      (searchFilters.productName.checked && item.product_name?.toLowerCase().includes(searchValue)) ||
-      (searchFilters.setId.checked && item.set_id?.toLowerCase().includes(searchValue))
+      (searchFilters.season.checked && item.season?.toString().toLowerCase().includes(searchValue)) ||
+      (searchFilters.channel.checked && item.channel_name?.toString().toLowerCase().includes(searchValue)) ||
+      (searchFilters.channelDetail.checked && item.channel_detail?.toString().toLowerCase().includes(searchValue)) ||
+      (searchFilters.category.checked && item.product_category?.toString().toLowerCase().includes(searchValue)) ||
+      (searchFilters.productName.checked && item.product_name?.toString().toLowerCase().includes(searchValue)) ||
+      (searchFilters.setId.checked && item.set_id?.toString().toLowerCase().includes(searchValue))
     );
   });
 
