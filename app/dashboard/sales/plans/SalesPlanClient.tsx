@@ -5,13 +5,8 @@ import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ko } from 'date-fns/locale';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/utils/supabase';
 import { format } from 'date-fns';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface Channel {
   channel_code: string;
@@ -130,7 +125,7 @@ const SalesPlanClient = ({ initialData }: Props) => {
         target_quantity: targetQuantity
       };
 
-      console.log('Submitting data:', formData); // 데이터 확인용 로그
+      console.log('Submitting data:', formData); // ���이터 확인용 로그
 
       const { data, error } = await supabase
         .from('sales_plans')
@@ -154,7 +149,7 @@ const SalesPlanClient = ({ initialData }: Props) => {
 
     } catch (error) {
       console.error('Error details:', error);
-      alert(error instanceof Error ? error.message : '판매계획 등록 중 오류가 발생했��니다.');
+      alert(error instanceof Error ? error.message : '판매계획 등록 중 오류가 발생했습니다.');
     }
   };
 
@@ -175,6 +170,12 @@ const SalesPlanClient = ({ initialData }: Props) => {
     console.log('Local Date String:', date?.toLocaleDateString());
     setSelectedDate(date);
   };
+
+  useEffect(() => {
+    if (selectedCategory) {
+      setCategoryDetails(selectedCategory.category_details || []);
+    }
+  }, [selectedCategory]);
 
   return (
     <DashboardLayout>
@@ -339,7 +340,7 @@ const SalesPlanClient = ({ initialData }: Props) => {
                 </div>
               </div>
 
-              {/* 네 번째 열 - 세트품번, 상품코드, 추가구성 */}
+              {/* �� 번째 열 - 세트품번, 상품코드, 추가구성 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   세트품번

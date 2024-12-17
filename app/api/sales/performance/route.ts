@@ -27,8 +27,8 @@ export async function GET(request: Request) {
     const now = new Date();
     const kstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
     const today = format(kstNow, 'yyyy-MM-dd');
+    const currentTime = format(kstNow, 'HH:mm:ss');
 
-    // 실적이 등록되지 않은 데이터만 조회하도록 수정
     let query = supabase
       .from('sales_plans')
       .select(`
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
           id
         )
       `, { count: 'exact' })
-      .lt('plan_date', today)
+      .or(`plan_date.lt.${today},and(plan_date.eq.${today},plan_time.lt.${currentTime})`)
       .is('sales_performance!sales_performance_sales_plan_id_fkey.id', null);
 
     if (searchTerm && searchFields.length > 0) {
@@ -135,4 +135,4 @@ export async function POST(request: Request) {
   }
 }
 
-// 필요한 경우 PUT, DELETE 등의 메서드도 추가할 수 있습니다. 
+// 필요한 경우 PUT, DELETE 등의 ���서드도 추가할 수 있습니다. 
