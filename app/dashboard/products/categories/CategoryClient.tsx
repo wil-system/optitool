@@ -1,48 +1,69 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
-import { supabase } from '@/utils/supabase';
 
 interface CategoryData {
   id: number;
-  name: string;
+  category_name: string;
   description?: string;
 }
 
-interface Props {
-  initialCategories: CategoryData[];
-}
-
-export default function CategoryClient({ initialCategories }: Props) {
-  const [categories, setCategories] = useState<CategoryData[]>(initialCategories);
+export default function CategoryClient() {
+  const [categories, setCategories] = useState<CategoryData[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 카테고리 목록 조회
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      if (!response.ok) throw new Error('카테고리 조회 실패');
+      
+      const result = await response.json();
+      console.log('API 응답:', result); // 디버깅용 로그
+      setCategories(result.data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setError('카테고리 목록을 불러오는데 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    console.log('현재 categories 상태:', categories);
+  }, [categories]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const data = { 
-      id: 0,
-      name: newCategory,
-      description: ''
-    };
-
+    
     try {
-      const { data: categoryData, error: submitError } = await supabase
-        .from('product_categories')
-        .insert([{ category_name: data.name, description: data.description }])
-        .select()
-        .single();
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          name: newCategory,
+          description: ''
+        }),
+      });
 
-      if (submitError) throw submitError;
-
-      setCategories([...categories, categoryData]);
+      if (!response.ok) throw new Error('카테고리 등록 실패');
+      
+      const { data } = await response.json();
+      setCategories([...categories, data]);
       setNewCategory('');
       setError('');
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error('Error:', error.message);
-      }
+    } catch (error) {
+      console.error('Error adding category:', error);
+      setError('카테고리 등록에 실패했습니다.');
     }
   };
 
@@ -50,18 +71,20 @@ export default function CategoryClient({ initialCategories }: Props) {
     if (!confirm('이 카테고리를 삭제하시겠습니까?')) return;
 
     try {
-      const { error: deleteError } = await supabase
-        .from('product_categories')
-        .delete()
-        .eq('id', id);
+      const response = await fetch(`/api/categories/${id}`, {
+        method: 'DELETE',
+      });
 
-      if (deleteError) throw deleteError;
+      if (!response.ok) throw new Error('카테고리 삭제 실패');
 
       setCategories(categories.filter(cat => cat.id !== id));
-    } catch (err) {
+    } catch (error) {
+      console.error('Error deleting category:', error);
       alert('카테고리 삭제 중 오류가 발생했습니다.');
     }
   };
+
+  if (isLoading) return <div>로딩중...</div>;
 
   return (
     <DashboardLayout>
@@ -76,7 +99,7 @@ export default function CategoryClient({ initialCategories }: Props) {
               {categories.map(category => (
                 <React.Fragment key={category.id}>
                   <div className="px-4 py-2 bg-gray-50 rounded">
-                    {category.name}
+                    {category.category_name}
                   </div>
                   <button
                     onClick={() => handleDelete(category.id)}
@@ -100,7 +123,7 @@ export default function CategoryClient({ initialCategories }: Props) {
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="카��고리명 입력"
+                  placeholder="카테고리명 입력"
                 />
                 <button
                   type="submit"

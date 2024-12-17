@@ -303,7 +303,7 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6 flex justify-between items-center border-b border-gray-200">
             <h3 className="text-lg leading-6 font-medium text-gray-900">
-              판매 등록
+              판매실적 등록
             </h3>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">

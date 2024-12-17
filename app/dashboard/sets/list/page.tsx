@@ -248,7 +248,7 @@ export default function SetListPage() {
                     onChange={() => handleSearchFieldChange('set_name')}
                     className="form-checkbox h-4 w-4 text-blue-600"
                   />
-                  <span className="ml-2">세트��</span>
+                  <span className="ml-2">세트명</span>
                 </label>
               </div>
               <div className="relative">
