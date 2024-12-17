@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     console.log(`⏰ Current Time: ${currentTime}`);
     console.log('================');
 
-    let query = supabase
+    const query = supabase
       .from('sales_plans')
       .select(`
         *,

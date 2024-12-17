@@ -135,4 +135,4 @@ export async function POST(request: Request) {
   }
 }
 
-// 필요한 경우 PUT, DELETE 등의 ���서드도 추가할 수 있습니다. 
+// 필요한 경우 PUT, DELETE 등의 서드도 추가할 수 있습니다. 
