@@ -11,7 +11,8 @@ export async function GET(request: Request) {
 
     let query = supabase
       .from('set_products')
-      .select('set_id, set_name, individual_product_ids, remarks, created_at', { count: 'exact' })
+      .select('id, set_id, set_name, individual_product_ids, remarks, created_at, is_active', { count: 'exact' })
+      .eq('is_active', true)
       .order('set_id', { ascending: true });
 
     // 검색 조건 추가
@@ -22,10 +23,16 @@ export async function GET(request: Request) {
       query = query.or(searchConditions.join(','));
     }
 
-    const { data, error, count } = await query
+    const { data: rawData, error, count } = await query
       .range(page * size, (page + 1) * size - 1);
 
     if (error) throw error;
+
+    // is_active가 없는 경우 기본값 true로 설정
+    const data = rawData?.map(item => ({
+      ...item,
+      is_active: item.is_active ?? true
+    }));
 
     return NextResponse.json({ 
       data,
@@ -48,25 +55,29 @@ export async function DELETE(request: Request) {
 
     if (!id) {
       return NextResponse.json(
-        { error: '삭제할 세트 ID가 필요합니다.' },
+        { error: '비활성화할 세트 ID가 필요합니다.' },
         { status: 400 }
       );
     }
 
-    const { error } = await supabase
+    // set_products 테이블의 is_active를 false로 업데이트
+    const { error: setError } = await supabase
       .from('set_products')
-      .delete()
-      .eq('set_id', id);
+      .update({ is_active: false })
+      .eq('id', id);
 
-    if (error) throw error;
+    if (setError) {
+      console.error('Set update error:', setError);
+      throw setError;
+    }
 
     return NextResponse.json({ 
-      message: '세트가 성공적으로 삭제되었습니다.' 
+      message: '세트가 성공적으로 비활성화되었습니다.' 
     });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
-      { error: '세트 삭제 중 오류가 발생했습니다.' },
+      { error: '세트 비활성화 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }
@@ -83,7 +94,7 @@ export async function PUT(request: Request) {
         individual_product_ids: set.individual_product_ids,
         remarks: set.remarks
       })
-      .eq('set_id', set.set_id);
+      .eq('id', set.id);
 
     if (error) throw error;
 

@@ -9,18 +9,12 @@ export async function GET() {
     const today = format(kstNow, 'yyyy-MM-dd');
     const currentTime = format(kstNow, 'HH:mm:ss');
 
-    console.log('=== 시간 정보 ===');
-    console.log(`🕒 KST DateTime: ${format(kstNow, 'yyyy-MM-dd HH:mm:ss')}`);
-    console.log(`📅 Today: ${today}`);
-    console.log(`⏰ Current Time: ${currentTime}`);
-    console.log('================');
-
-    const query = supabase
+    // 판매계획 조회
+    const { data, error } = await supabase
       .from('sales_plans')
       .select(`
         *,
-        sales_channels!inner (
-          channel_code,
+        channel:sales_channels (
           channel_name
         )
       `)
@@ -30,14 +24,19 @@ export async function GET() {
       )
       .order('created_at', { ascending: false });
 
-    const { data, error } = await query;
+    if (error) {
+      console.error('Query Error:', error);
+      throw error;
+    }
 
-    if (error) throw error;
+    console.log('Raw Data:', data?.[0]); // 원본 데이터 로깅
 
-    const formattedData = data?.map(item => ({
-      ...item,
-      channel_name: item.sales_channels?.channel_name || ''
+    const formattedData = data?.map(plan => ({
+      ...plan,
+      channel_name: plan.channel?.channel_name || ''
     })) || [];
+
+    console.log('Formatted Data:', formattedData[0]); // 가공된 데이터 로깅
 
     return NextResponse.json({
       data: formattedData

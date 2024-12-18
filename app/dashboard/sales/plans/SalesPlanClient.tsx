@@ -9,14 +9,17 @@ import { supabase } from '@/utils/supabase';
 import { format } from 'date-fns';
 
 interface Channel {
+  id: number;
   channel_code: string;
   channel_name: string;
   channel_details: string[];
 }
 
 interface SetProduct {
+  id: string;
   set_id: string;
   set_name: string;
+  is_active: boolean;
 }
 
 interface Category {
@@ -52,8 +55,8 @@ const SalesPlanClient = ({ initialData }: Props) => {
   const [formattedTarget, setFormattedTarget] = useState<string>('');
 
   // 채널 선택 시 채널상세 업데이트
-  const handleChannelChange = (channelCode: string) => {
-    const selected = channels.find(ch => ch.channel_code === channelCode);
+  const handleChannelChange = (channelId: string) => {
+    const selected = channels.find(ch => ch.id === Number(channelId));
     setSelectedChannel(selected || null);
     setChannelDetails(selected?.channel_details || []);
   };
@@ -112,7 +115,8 @@ const SalesPlanClient = ({ initialData }: Props) => {
         season: '24FW',
         plan_date: format(selectedDate, 'yyyy-MM-dd'),
         plan_time: selectedTime.toTimeString().split(' ')[0],
-        channel_code: selectedChannel.channel_code,
+        channel_id: selectedChannel?.id,
+        channel_code: selectedChannel?.channel_code,
         channel_detail: form.channel_detail.value || '',
         product_category: selectedCategory?.category_name || '',
         product_name: form.product_name.value || '',
@@ -122,19 +126,26 @@ const SalesPlanClient = ({ initialData }: Props) => {
         product_code: form.product_code.value || '',
         sale_price: Number(formattedSalePrice.replace(/[원,]/g, '')) || 0,
         commission_rate: Number(formattedCommissionRate.replace('%', '')) || 0,
-        target_quantity: targetQuantity
+        target_quantity: Number(formattedTarget.replace(/[개,]/g, ''))
       };
 
-      console.log('Submitting data:', formData); // ���이터 확인용 로그
+      console.log('전송할 데이터:', formData);
 
-      const { data, error } = await supabase
-        .from('sales_plans')
-        .insert([formData])
-        .select();
+      const response = await fetch('/api/sales/plans', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+      console.log('API 응답:', result);
 
-      console.log('Success - Inserted data:', data);
+      if (!response.ok) {
+        throw new Error(result.error || '판매계획 등록에 실패했습니다.');
+      }
+
       alert('판매계획이 등록되었습니다.');
       
       // 폼 초기화
@@ -148,8 +159,12 @@ const SalesPlanClient = ({ initialData }: Props) => {
       setFormattedTarget('');
 
     } catch (error) {
-      console.error('Error details:', error);
-      alert(error instanceof Error ? error.message : '판매계획 등록 중 오류가 발생했습니다.');
+      console.error('Error:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      alert('판매계획 등록 중 오류가 발생했습니다.');
     }
   };
 
@@ -176,6 +191,13 @@ const SalesPlanClient = ({ initialData }: Props) => {
       setCategoryDetails(selectedCategory.category_details || []);
     }
   }, [selectedCategory]);
+
+  useEffect(() => {
+    console.log('세트 데이터:', sets.map(set => ({
+      ...set,
+      is_active: set.is_active
+    })));
+  }, [sets]);
 
   return (
     <DashboardLayout>
@@ -260,7 +282,7 @@ const SalesPlanClient = ({ initialData }: Props) => {
                 >
                   <option value="" key="default-channel">판매채널 선택</option>
                   {channels.map((channel) => (
-                    <option key={`channel-${channel.channel_code}`} value={channel.channel_code}>
+                    <option key={channel.id} value={channel.id}>
                       {channel.channel_name}
                     </option>
                   ))}
@@ -278,7 +300,7 @@ const SalesPlanClient = ({ initialData }: Props) => {
                 >
                   <option value="" key="default-channel-detail">채널상세 선택</option>
                   {channelDetails.map((detail, index) => (
-                    <option key={`channel-detail-${index}`} value={detail}>
+                    <option key={`${selectedChannel?.id}-detail-${index}`} value={detail}>
                       {detail}
                     </option>
                   ))}
@@ -293,20 +315,12 @@ const SalesPlanClient = ({ initialData }: Props) => {
                   name="product_category"  
                   className="w-48 px-3 py-2 border border-gray-300 rounded-md"
                   value={selectedCategory?.category_name || ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    console.log('Raw selected value:', value);
-                    console.log('Categories:', categories);
-                    console.log('Selected category:', categories.find(c => c.category_name === value));
-                    if (value) {
-                      handleCategoryChange(value);
-                    }
-                  }}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
                 >
-                  <option value="">카테고리 선택</option>
-                  {categories?.map((category, index) => (
+                  <option value="" key="default-category">카테고리 선택</option>
+                  {categories?.map((category) => (
                     <option 
-                      key={`category-${index}`}
+                      key={`category-${category.category_name}`}
                       value={category.category_name}
                     >
                       {category.category_name}
@@ -340,7 +354,7 @@ const SalesPlanClient = ({ initialData }: Props) => {
                 </div>
               </div>
 
-              {/* �� 번째 열 - 세트품번, 상품코드, 추가구성 */}
+              {/* 네 번째 열 - 세트품번, 상품코드, 추가구성 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   세트품번
@@ -350,11 +364,16 @@ const SalesPlanClient = ({ initialData }: Props) => {
                   className="w-40 px-3 py-2 border border-gray-300 rounded-md"
                 >
                   <option value="" key="default-set">세트품번 선택</option>
-                  {sets.map((set) => (
-                    <option key={`set-${set.set_id}`} value={set.set_id}>
-                      {set.set_id} - {set.set_name}
-                    </option>
-                  ))}
+                  {sets
+                    .filter(set => set.is_active !== false)
+                    .map((set, index) => (
+                      <option 
+                        key={`set-${set.set_id}-${index}`}
+                        value={set.set_id}
+                      >
+                        {set.set_id} - {set.set_name}
+                      </option>
+                    ))}
                 </select>
               </div>
 

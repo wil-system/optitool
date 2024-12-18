@@ -2,8 +2,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import useSWR from 'swr';
+import SetRegistrationModal from '@/app/components/sets/SetRegistrationModal';
 
 interface SetProduct {
+  id: string;
   set_id: string;
   set_name: string;
   individual_product_ids: string[];
@@ -95,6 +97,7 @@ export default function SetListPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const PAGE_SIZE = 100;
+  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
 
   const fetchSets = useCallback(async () => {
     try {
@@ -220,6 +223,11 @@ export default function SetListPage() {
     }
   };
 
+  const handleCloseRegistrationModal = () => {
+    setIsRegistrationModalOpen(false);
+    fetchSets();
+  };
+
   if (isLoading) return <div>로딩 중...</div>;
   
   return (
@@ -231,6 +239,12 @@ export default function SetListPage() {
               세트목록
             </h3>
             <div className="flex items-center gap-4">
+              <button
+                onClick={() => setIsRegistrationModalOpen(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                세트등록
+              </button>
               <div className="flex items-center gap-2">
                 <label className="inline-flex items-center">
                   <input
@@ -302,25 +316,28 @@ export default function SetListPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {sets.map((set) => (
-                editingId === set.set_id ? (
+                editingId === set.id ? (
                   <EditableRow
-                    key={set.set_id}
+                    key={`edit-${set.id}`}
                     set={set}
                     onCancel={() => setEditingId(null)}
                     onSave={handleSave}
                   />
                 ) : (
-                  <tr key={set.set_id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <tr 
+                    key={set.id}
+                    className="hover:bg-gray-50"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
                       {set.set_id}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       {set.set_name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       {set.individual_product_ids.join(', ')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       {set.remarks}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
@@ -365,6 +382,14 @@ export default function SetListPage() {
       
       {/* 삭제 확인 팝업 */}
       <DeleteConfirmPopup />
+
+      {/* 세트등록 모달 */}
+      {isRegistrationModalOpen && (
+        <SetRegistrationModal
+          isOpen={isRegistrationModalOpen}
+          onClose={handleCloseRegistrationModal}
+        />
+      )}
     </DashboardLayout>
   );
 } 

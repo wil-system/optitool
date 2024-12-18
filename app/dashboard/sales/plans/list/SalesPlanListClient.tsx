@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import { format } from 'date-fns';
 import { createClient } from '@supabase/supabase-js';
+import SalesPlanRegistrationModal from '@/app/components/sales/SalesPlanRegistrationModal';
 
  
 interface SalesPlan {
@@ -11,7 +12,10 @@ interface SalesPlan {
   season: string;
   plan_date: string;
   plan_time: string;
-  channel_code: string;
+  channel_id: number;
+  channel: {
+    channel_name: string;
+  };
   channel_name: string;
   channel_detail: string;
   product_category: string;
@@ -30,12 +34,18 @@ interface Channel {
   channel_name: string;
 }
 
+interface Category {
+  category_name: string;
+}
+
 interface Props {
   initialData: SalesPlan[];
   channels: Channel[];
+  categories: Category[];
+  setIds: any[];
 }
 
-const SalesPlanListClient = ({ initialData, channels }: Props) => {
+const SalesPlanListClient = ({ initialData, channels, categories, setIds }: Props) => {
   const [salesPlans, setSalesPlans] = useState<SalesPlan[]>(initialData || []);
   const [channelsData, setChannelsData] = useState(channels || []);
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,6 +61,8 @@ const SalesPlanListClient = ({ initialData, channels }: Props) => {
     productName: true,
     setId: true,
   });
+
+  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -189,6 +201,12 @@ const SalesPlanListClient = ({ initialData, channels }: Props) => {
               >
                 검색
               </button>
+              <button
+                onClick={() => setIsRegistrationModalOpen(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                계획 추가
+              </button>
             </div>
           </div>
 
@@ -254,6 +272,17 @@ const SalesPlanListClient = ({ initialData, channels }: Props) => {
           </div>
         </div>
       </div>
+      <SalesPlanRegistrationModal 
+        isOpen={isRegistrationModalOpen}
+        onClose={() => setIsRegistrationModalOpen(false)}
+        onSuccess={() => {
+          setIsRegistrationModalOpen(false);
+          window.location.reload();
+        }}
+        channels={channels}
+        categories={categories}
+        setIds={setIds}
+      />
     </DashboardLayout>
   );
 };

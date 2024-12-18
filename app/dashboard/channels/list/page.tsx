@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import useSWR from 'swr';
+import ChannelRegistrationModal from '@/app/components/channels/ChannelRegistrationModal';
 
 interface SalesChannel {
   channel_code: string;
@@ -113,6 +114,7 @@ export default function ChannelListPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const PAGE_SIZE = 100;
+  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
 
   const fetcher = (url: string) => fetch(url).then(res => res.json());
   const { data, isLoading: _ } = useSWR('/api/channels', fetcher);
@@ -295,6 +297,12 @@ export default function ChannelListPage() {
               >
                 검색
               </button>
+              <button
+                onClick={() => setIsRegistrationModalOpen(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                채널 추가
+              </button>
             </div>
           </div>
 
@@ -384,6 +392,16 @@ export default function ChannelListPage() {
       
       {/* 삭제 확인 팝업 */}
       <DeleteConfirmPopup />
+
+      {/* 등록 모달 */}
+      <ChannelRegistrationModal 
+        isOpen={isRegistrationModalOpen}
+        onClose={() => setIsRegistrationModalOpen(false)}
+        onSuccess={() => {
+          setIsRegistrationModalOpen(false);
+          fetchChannels(); // 목록 새로고침
+        }}
+      />
     </DashboardLayout>
   );
 } 

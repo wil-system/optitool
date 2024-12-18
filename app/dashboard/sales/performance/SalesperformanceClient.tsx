@@ -467,7 +467,11 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
       </div>
 
       {isModalOpen && (
-        <Modal onClose={() => setIsModalOpen(false)}>
+        <Modal 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)}
+          title="실적 입력"
+        >
           <div className="p-6">
             <h2 className="text-xl font-semibold mb-4 text-center">실적 입력</h2>
             <div className="space-y-6 w-[800px]">

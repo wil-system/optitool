@@ -9,7 +9,7 @@ async function getInitialData() {
 
   const [channelResponse, setResponse, categoryResponse] = await Promise.all([
     supabase.from('sales_channels').select('*'),
-    supabase.from('set_products').select('set_id, set_name'),
+    supabase.from('set_products').select('id, set_id, set_name, is_active'),
     supabase.from('product_categories').select('*')
   ]);
 
