@@ -237,7 +237,9 @@ const SalesPlanListClient = ({ initialData, channels, categories, setIds }: Prop
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_detail}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_category}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.set_id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {setIds.find(item => item.id === Number(plan.set_id))?.set_id || plan.set_id}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatPrice(plan.sale_price)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{plan.commission_rate}%</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">

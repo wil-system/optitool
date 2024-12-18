@@ -3,81 +3,62 @@ import { supabase } from '@/utils/supabase';
 import { format, addHours } from 'date-fns';
 
 export async function GET(request: Request) {
-  const requestTime = new Date().toISOString();
-  console.log(`[${requestTime}] API 요청 시작`);
-
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '0');
-    const size = parseInt(searchParams.get('size') || '100');
-    const searchTerm = searchParams.get('searchTerm') || '';
-    const searchFields = (searchParams.get('searchFields') || '').split(',');
-    const dataType = searchParams.get('dataType') || 'sales';
-
-    if (dataType === 'channels') {
-      const { data: channelsData, error: channelsError } = await supabase
-        .from('sales_channels')
-        .select('*');
-
-      if (channelsError) throw channelsError;
-      return NextResponse.json(channelsData);
-    }
-
-    // sales_plans 데이터 요청 처리
+    const page = Number(searchParams.get('page')) || 0;
+    const pageSize = 10;
+    
     const now = new Date();
     const kstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
     const today = format(kstNow, 'yyyy-MM-dd');
     const currentTime = format(kstNow, 'HH:mm:ss');
 
-    let query = supabase
+    // 실적이 등록된 sales_plan_id 목록 조회
+    const { data: performanceData } = await supabase
+      .from('sales_performance')
+      .select('sales_plan_id');
+
+    const registeredPlanIds = performanceData?.map(item => item.sales_plan_id) || [];
+
+    const { data: salesPlans, error: salesError } = await supabase
       .from('sales_plans')
       .select(`
         *,
-        sales_performance!sales_performance_sales_plan_id_fkey (
-          id
-        )
-      `, { count: 'exact' })
-      .or(`plan_date.lt.${today},and(plan_date.eq.${today},plan_time.lt.${currentTime})`)
-      .is('sales_performance!sales_performance_sales_plan_id_fkey.id', null);
-
-    if (searchTerm && searchFields.length > 0) {
-      const searchConditions = searchFields.map(field => {
-        return `${field}.ilike.%${searchTerm}%`;
-      });
-      query = query.or(searchConditions.join(','));
-    }
-
-    const from = page * size;
-    const to = from + size - 1;
-    
-    query = query
+        channel:sales_channels(channel_name)
+      `)
+      .or(
+        `plan_date.lt.${today},` +
+        `and(plan_date.eq.${today},plan_time.lt.${currentTime})`
+      )
+      .not('id', 'in', `(${registeredPlanIds.join(',')})`)
       .order('plan_date', { ascending: false })
       .order('plan_time', { ascending: false })
-      .range(from, to);
+      .range(page * pageSize, (page + 1) * pageSize - 1);
 
-    const { data, error, count } = await query;
+    if (salesError) throw salesError;
 
-    if (error) throw error;
+    const formattedData = salesPlans?.map(plan => ({
+      ...plan,
+      channel_name: plan.channel?.channel_name || ''
+    })) || [];
 
-    const formattedData = data?.map(item => ({
-      ...item,
-      plan_date: format(addHours(new Date(item.plan_date), 9), 'yyyy-MM-dd'),
-      created_at: item.created_at ? format(addHours(new Date(item.created_at), 9), 'yyyy-MM-dd HH:mm:ss') : null,
-      updated_at: item.updated_at ? format(addHours(new Date(item.updated_at), 9), 'yyyy-MM-dd HH:mm:ss') : null
-    }));
+    const { count } = await supabase
+      .from('sales_plans')
+      .select('*', { count: 'exact', head: true })
+      .or(
+        `plan_date.lt.${today},` +
+        `and(plan_date.eq.${today},plan_time.lt.${currentTime})`
+      )
+      .not('id', 'in', `(${registeredPlanIds.join(',')})`)
 
     return NextResponse.json({
       data: formattedData,
-      hasMore: count ? from + size < count : false,
-      total: count
+      hasMore: (page + 1) * pageSize < (count || 0)
     });
 
   } catch (error) {
-    console.error('❌ 데이터 조회 중 오류:', error);
-    return NextResponse.json(
-      { error: '데이터 조회에 실패했습니다.' },
-      { status: 500 }
-    );
+    console.error('Error:', error);
+    return NextResponse.json({ error: '데이터 조회 실패' }, { status: 500 });
   }
 }
 
@@ -134,5 +115,4 @@ export async function POST(request: Request) {
     );
   }
 }
-
-// 필요한 경우 PUT, DELETE 등의 서드도 추가할 수 있습니다. 
+ 

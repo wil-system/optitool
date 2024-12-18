@@ -17,8 +17,8 @@ interface Props {
 
 export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess, channels, categories, setIds }: Props) {
   const today = new Date();
-  const [selectedDate, setSelectedDate] = useState<Date | null>(today);
-  const [selectedTime, setSelectedTime] = useState<Date | null>(today);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTime, setSelectedTime] = useState<Date | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [channelDetails, setChannelDetails] = useState<string[]>([]);
@@ -41,10 +41,12 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
   const [formData, setFormData] = useState(initialFormData);
   const [productCode, setProductCode] = useState('');
 
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+
   useEffect(() => {
     if (isOpen) {
-      setSelectedDate(today);
-      setSelectedTime(today);
+      setSelectedDate(null);
+      setSelectedTime(null);
       setSelectedChannel(null);
       setSelectedCategory(null);
       setChannelDetails([]);
@@ -65,24 +67,27 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
     }
   };
 
-  const formatPrice = (value: string) => {
+  const formatPrice = (value: string, isFocused: boolean) => {
     const number = value.replace(/[^\d]/g, '');
-    return number ? Number(number).toLocaleString() + '원' : '';
+    if (!number) return '';
+    return isFocused ? number : Number(number).toLocaleString() + '원';
   };
 
-  const formatCommissionRate = (value: string) => {
+  const formatCommissionRate = (value: string, isFocused: boolean) => {
     const number = value.replace(/[^\d]/g, '');
-    if (number && Number(number) > 100) return '100%';
-    return number ? number + '%' : '';
+    if (!number) return '';
+    if (Number(number) > 100) return isFocused ? '100' : '100%';
+    return isFocused ? number : number + '%';
   };
 
-  const formatTarget = (value: string) => {
+  const formatTarget = (value: string, isFocused: boolean) => {
     const number = value.replace(/[^\d]/g, '');
-    return number ? Number(number).toLocaleString() + '개' : '';
+    if (!number) return '';
+    return isFocused ? number : Number(number).toLocaleString() + '개';
   };
 
   const handleSalePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPrice(e.target.value);
+    const formatted = formatPrice(e.target.value, false);
     setFormattedSalePrice(formatted);
     setFormData({
       ...formData,
@@ -91,7 +96,7 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
   };
 
   const handleCommissionRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCommissionRate(e.target.value);
+    const formatted = formatCommissionRate(e.target.value, false);
     setFormattedCommissionRate(formatted);
     setFormData({
       ...formData,
@@ -100,7 +105,7 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
   };
 
   const handleTargetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatTarget(e.target.value);
+    const formatted = formatTarget(e.target.value, false);
     setFormattedTarget(formatted);
     setFormData({
       ...formData,
@@ -109,10 +114,10 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
   };
 
   const handleSetIdChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const setId = e.target.value;
+    const selectedId = e.target.value;
     setFormData({
       ...formData,
-      set_id: setId
+      set_id: selectedId
     });
   };
 
@@ -205,6 +210,10 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
     }
   };
 
+  const currentDate = new Date();
+  const isToday = selectedDate && format(selectedDate, 'yyyy-MM-dd') === format(currentDate, 'yyyy-MM-dd');
+  const minTime = isToday ? currentDate : new Date(new Date().setHours(0, 0, 0, 0));
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="판매계획 등록">
       <form onSubmit={handleSubmit} className="space-y-6 p-6">
@@ -218,6 +227,7 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
                   selected={selectedDate}
                   onChange={(date) => setSelectedDate(date)}
                   dateFormat="yyyy-MM-dd"
+                  minDate={today}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
               </div>
@@ -231,9 +241,37 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
                   timeIntervals={30}
                   timeCaption="Time"
                   dateFormat="HH:mm"
+                  timeFormat="HH:mm"
+                  minTime={minTime}
+                  maxTime={new Date(new Date().setHours(23, 59, 59, 999))} 
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">상품코드</label>
+              <input
+                type="text"
+                value={formData.product_code}
+                onChange={(e) => setFormData({...formData, product_code: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">세트품번</label>
+              <select
+                value={formData.set_id}
+                onChange={handleSetIdChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                style={{ minWidth: '300px' }}
+              >
+                <option value="">선택하세요</option>
+                {setIds.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.set_id}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">판매채널</label>
@@ -313,38 +351,14 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">세트품번</label>
-                <select
-                  value={formData.set_id}
-                  onChange={handleSetIdChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="">선택하세요</option>
-                  {setIds.map((item) => (
-                    <option key={item.id} value={item.set_id}>
-                      {item.set_id}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">상품코드</label>
-                <input
-                  type="text"
-                  value={formData.product_code}
-                  onChange={(e) => setFormData({...formData, product_code: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">판매가</label>
               <input
                 type="text"
-                value={formattedSalePrice}
+                value={focusedField === 'price' ? formData.sale_price : formatPrice(formData.sale_price, false)}
                 onChange={handleSalePriceChange}
+                onFocus={() => setFocusedField('price')}
+                onBlur={() => setFocusedField(null)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 placeholder="판매가"
               />
@@ -354,8 +368,10 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
                 <label className="block text-sm font-medium text-gray-700">수수료율</label>
                 <input
                   type="text"
-                  value={formattedCommissionRate}
+                  value={focusedField === 'commission' ? formData.commission_rate : formatCommissionRate(formData.commission_rate, false)}
                   onChange={handleCommissionRateChange}
+                  onFocus={() => setFocusedField('commission')}
+                  onBlur={() => setFocusedField(null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   placeholder="수수료율"
                 />
@@ -364,8 +380,10 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
                 <label className="block text-sm font-medium text-gray-700">목표수량</label>
                 <input
                   type="text"
-                  value={formattedTarget}
+                  value={focusedField === 'target' ? formData.target_quantity : formatTarget(formData.target_quantity, false)}
                   onChange={handleTargetChange}
+                  onFocus={() => setFocusedField('target')}
+                  onBlur={() => setFocusedField(null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   placeholder="목표수량"
                 />

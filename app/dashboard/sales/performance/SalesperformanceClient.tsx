@@ -187,7 +187,7 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
               </svg>
               <h3 className="text-lg font-medium text-gray-900">데이터가 없습니다</h3>
             </div>
-            <p className="mt-2 text-sm text-gray-500">표시할 판매 계획이 없습니다.</p>
+            <p className="mt-2 text-sm text-gray-500">표시할 판매실적이 없습니다.</p>
           </div>
         </div>
       </DashboardLayout>
@@ -512,7 +512,7 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
                     />
                   </div>
                   <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
-                    <label className="block text-sm font-medium text-gray-700 mb-1 text-center">당일온도 (��C)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 text-center">당일온도 (C)</label>
                     <input
                       type="number"
                       step="0.1"

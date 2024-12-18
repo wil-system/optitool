@@ -41,13 +41,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <a>판매 관리</a>
                 <ul className="ml-3 mt-1 space-y-1">
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <a href="/dashboard/channels/list">판매채널 목록</a>
+                    <a href="/dashboard/channels/list">판매채널</a>
                   </li>
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <a href="/dashboard/sales/plans">판매계획 등록</a>
-                  </li>
-                  <li className="px-2 py-1 hover:bg-gray-100">
-                    <a href="/dashboard/sales/plans/list">판매계획 목록</a>
+                    <a href="/dashboard/sales/plans/list">판매계획</a>
                   </li>
                   <li className="px-2 py-1 hover:bg-gray-100">
                     <a href="/dashboard/sales/performance">판매실적 등록</a>
