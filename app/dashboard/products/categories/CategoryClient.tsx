@@ -14,59 +14,30 @@ interface CategoryClientProps {
 
 export default function CategoryClient({ initialCategories }: CategoryClientProps) {
   const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [newCategory, setNewCategory] = useState('');
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
-  // 카테고리 목록 조회
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch('/api/categories');
-      if (!response.ok) throw new Error('카테고리 조회 실패');
-      
-      const result = await response.json();
-      console.log('API 응답:', result); // 디버깅용 로그
-      setCategories(result.data || []);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      setError('카테고리 목록을 불러오는데 실패했습니다.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  useEffect(() => {
-    console.log('현재 categories 상태:', categories);
-  }, [categories]);
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (!newCategoryName.trim()) return;
+
     try {
       const response = await fetch('/api/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          name: newCategory,
-          description: ''
-        }),
+        body: JSON.stringify({ name: newCategoryName }),
       });
 
       if (!response.ok) throw new Error('카테고리 등록 실패');
-      
+
       const { data } = await response.json();
       setCategories([...categories, data]);
-      setNewCategory('');
-      setError('');
+      setNewCategoryName('');
     } catch (error) {
       console.error('Error adding category:', error);
-      setError('카테고리 등록에 실패했습니다.');
+      alert('카테고리 등록 중 오류가 발생했습니다.');
     }
   };
 
@@ -91,55 +62,43 @@ export default function CategoryClient({ initialCategories }: CategoryClientProp
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">카테고리 관리</h1>
-
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 className="text-xl font-semibold mb-4">카테고리 목록</h2>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-4">카테고리 관리</h2>
           
-          <div className="mb-6">
-            <div className="grid grid-cols-[1fr,auto] gap-4 items-center">
-              {categories.map(category => (
-                <React.Fragment key={category.id}>
-                  <div className="px-4 py-2 bg-gray-50 rounded">
-                    {category.category_name}
-                  </div>
-                  <button
-                    onClick={() => handleDelete(category.id)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    삭제
-                  </button>
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                새 카테고리
-              </label>
-              <div className="flex gap-4">
-                <input
-                  type="text"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="카테고리명 입력"
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  추가
-                </button>
-              </div>
-              {error && (
-                <p className="mt-1 text-sm text-red-600">{error}</p>
-              )}
-            </div>
+          {/* 등록 폼 */}
+          <form onSubmit={handleSubmit} className="mb-6 flex gap-4">
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              placeholder="카테고리명 입력"
+              className="flex-1 px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              type="submit"
+              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              등록
+            </button>
           </form>
+
+          {/* 카테고리 목록 */}
+          <div className="grid grid-cols-[1fr,auto] gap-4 items-center">
+            {categories.map(category => (
+              <React.Fragment key={category.id}>
+                <div className="px-4 py-2 bg-gray-50 rounded">
+                  {category.category_name}
+                </div>
+                <button
+                  onClick={() => handleDelete(category.id)}
+                  className="px-4 py-2 text-red-600 hover:text-red-800"
+                >
+                  삭제
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       </div>
     </DashboardLayout>

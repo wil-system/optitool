@@ -427,14 +427,12 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{plan.commission_rate}%</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{plan.target_quantity.toLocaleString()}개</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                      {selectedRowId === plan.id && (
-                        <button
-                          onClick={(e) => handleRegisterClick(plan, e)}
-                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          등록
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => handleRegisterClick(plan, e)}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        등록
+                      </button>
                     </td>
                   </tr>
                 ))}

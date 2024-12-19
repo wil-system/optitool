@@ -15,7 +15,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <nav className="mt-2">
           <ul className="space-y-1">
             <li className="px-3 py-2 hover:bg-gray-100">
-              <a href="/dashboard">대시보드</a>
+              <a href="/">대시보드</a>
             </li>
             <li className="px-3 py-2 hover:bg-gray-100">
               <div>
@@ -52,21 +52,21 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   <li className="px-2 py-1 hover:bg-gray-100">
                     <a href="/dashboard/sales/performance/list">판매실적 목록</a>
                   </li>
-                  <li className="px-2 py-1 hover:bg-gray-100">
+                  {/* <li className="px-2 py-1 hover:bg-gray-100">
                     <a href="/dashboard/sales/production">생산수량</a>
                   </li>
                   <li className="px-2 py-1 hover:bg-gray-100">
                     <a href="/dashboard/sales/settlement">정산</a>
-                  </li>
+                  </li> */}
                 </ul>
               </div>
             </li>
-            <li className="px-3 py-2 hover:bg-gray-100">
+            {/* <li className="px-3 py-2 hover:bg-gray-100">
               <a href="/dashboard/users">사용자 관리</a>
             </li>
             <li className="px-3 py-2 hover:bg-gray-100">
               <a href="/dashboard/settings">설정</a>
-            </li>
+            </li> */}
           </ul>
         </nav>
       </div>
