@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -15,58 +16,46 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <nav className="mt-2">
           <ul className="space-y-1">
             <li className="px-3 py-2 hover:bg-gray-100">
-              <a href="/">대시보드</a>
+              <Link href="/">대시보드</Link>
             </li>
             <li className="px-3 py-2 hover:bg-gray-100">
               <div>
-                <a>상품 관리</a>
+                <span>상품 관리</span>
                 <ul className="ml-3 mt-1 space-y-1">
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <a href="/dashboard/products/register">상품등록</a>
+                    <Link href="/dashboard/products/register">상품등록</Link>
                   </li>
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <a href="/dashboard/products/list">상품목록</a>
+                    <Link href="/dashboard/products/list">상품목록</Link>
                   </li>
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <a href="/dashboard/sets/list">세트목록</a>
+                    <Link href="/dashboard/sets/list">세트목록</Link>
                   </li>
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <a href="/dashboard/products/categories">카테고리 설정</a>
+                    <Link href="/dashboard/products/categories">카테고리 설정</Link>
                   </li>
                 </ul>
               </div>
             </li>
             <li className="px-3 py-2 hover:bg-gray-100">
               <div>
-                <a>판매 관리</a>
+                <span>판매 관리</span>
                 <ul className="ml-3 mt-1 space-y-1">
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <a href="/dashboard/channels/list">판매채널</a>
+                    <Link href="/dashboard/channels/list">판매채널</Link>
                   </li>
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <a href="/dashboard/sales/plans/list">판매계획</a>
+                    <Link href="/dashboard/sales/plans/list">판매계획</Link>
                   </li>
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <a href="/dashboard/sales/performance">판매실적 등록</a>
+                    <Link href="/dashboard/sales/performance">판매실적 등록</Link>
                   </li>
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <a href="/dashboard/sales/performance/list">판매실적 목록</a>
+                    <Link href="/dashboard/sales/performance/list">판매실적 목록</Link>
                   </li>
-                  {/* <li className="px-2 py-1 hover:bg-gray-100">
-                    <a href="/dashboard/sales/production">생산수량</a>
-                  </li>
-                  <li className="px-2 py-1 hover:bg-gray-100">
-                    <a href="/dashboard/sales/settlement">정산</a>
-                  </li> */}
                 </ul>
               </div>
             </li>
-            {/* <li className="px-3 py-2 hover:bg-gray-100">
-              <a href="/dashboard/users">사용자 관리</a>
-            </li>
-            <li className="px-3 py-2 hover:bg-gray-100">
-              <a href="/dashboard/settings">설정</a>
-            </li> */}
           </ul>
         </nav>
       </div>
