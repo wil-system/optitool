@@ -1,18 +1,15 @@
-import { createClient } from '@supabase/supabase-js';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import CategoryClient from './CategoryClient';
 
 async function getCategories() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
-  const { data: categories } = await supabase
+  const supabase = createServerComponentClient({ cookies });
+  const { data } = await supabase
     .from('product_categories')
     .select('*')
-    .order('category_name');
-
-  return categories || [];
+    .order('id', { ascending: true });
+  
+  return data || [];
 }
 
 export default async function CategoryPage() {

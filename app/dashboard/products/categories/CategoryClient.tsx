@@ -3,17 +3,20 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 
-interface CategoryData {
+interface Category {
   id: number;
   category_name: string;
-  description?: string;
 }
 
-export default function CategoryClient() {
-  const [categories, setCategories] = useState<CategoryData[]>([]);
+interface CategoryClientProps {
+  initialCategories: Category[];
+}
+
+export default function CategoryClient({ initialCategories }: CategoryClientProps) {
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [newCategory, setNewCategory] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   // 카테고리 목록 조회
   const fetchCategories = async () => {
