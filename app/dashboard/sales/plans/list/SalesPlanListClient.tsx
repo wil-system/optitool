@@ -3,10 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import { format } from 'date-fns';
-import { createClient } from '@supabase/supabase-js';
 import SalesPlanRegistrationModal from '@/app/components/sales/SalesPlanRegistrationModal';
 
- 
 interface SalesPlan {
   id: number;
   season: string;
@@ -30,11 +28,13 @@ interface SalesPlan {
 }
 
 interface Channel {
+  id: number;
   channel_code: string;
   channel_name: string;
 }
 
 interface Category {
+  id: number;
   category_name: string;
 }
 
@@ -45,68 +45,53 @@ interface Props {
   setIds: any[];
 }
 
-const SalesPlanListClient = ({ initialData, channels, categories, setIds }: Props) => {
-  const [salesPlans, setSalesPlans] = useState<SalesPlan[]>(initialData || []);
-  const [channelsData, setChannelsData] = useState(channels || []);
+export default function SalesPlanListClient({ initialData, channels: initialChannels, categories, setIds }: Props) {
+  const [data, setData] = useState<SalesPlan[]>(initialData);
+  const [channels, setChannels] = useState(initialChannels);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  const [searchFilters, setSearchFilters] = useState({
-    season: true,
-    channel: true,
-    channelDetail: true,
-    category: true,
-    productName: true,
-    setId: true,
-  });
-
+  const [totalPages, setTotalPages] = useState(1);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch('/api/sales/plans/list');
-        const result = await response.json();
-        
-        setSalesPlans(result.data);
-        setChannelsData(result.channels);
-      } catch (error) {
-        console.error('데이터 로드 중 오류 발생:', error);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`/api/sales/plans/list?page=${currentPage}&searchTerm=${searchTerm}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    };
+      
+      const result = await response.json();
+      console.log('API 응답:', result);
 
-    fetchData();
-  }, []);
-
-  const filteredPlans = salesPlans?.filter(plan => {
-    if (appliedSearchTerm === '') return true;
-    
-    const searchValue = appliedSearchTerm.toLowerCase();
-    return (
-      (searchFilters.season && plan.season.toLowerCase().includes(searchValue)) ||
-      (searchFilters.channel && plan.channel_name.toLowerCase().includes(searchValue)) ||
-      (searchFilters.channelDetail && plan.channel_detail.toLowerCase().includes(searchValue)) ||
-      (searchFilters.category && plan.product_category.toLowerCase().includes(searchValue)) ||
-      (searchFilters.productName && plan.product_name.toLowerCase().includes(searchValue)) ||
-      (searchFilters.setId && plan.set_id.toLowerCase().includes(searchValue))
-    );
-  }) || [];
-
-  const totalPages = Math.ceil(filteredPlans.length / itemsPerPage);
-  const currentItems = filteredPlans.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const formatPrice = (price: number) => {
-    return price.toLocaleString() + '원';
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      setData(result.data);
+      setChannels(result.channels);
+      setTotalPages(result.totalPages);
+      
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError(err instanceof Error ? err : new Error('알 수 없는 오류가 발생했습니다'));
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, [currentPage, searchTerm]);
+
   const handleSearch = () => {
-    setAppliedSearchTerm(searchTerm);
     setCurrentPage(1);
+    fetchData();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -115,71 +100,48 @@ const SalesPlanListClient = ({ initialData, channels, categories, setIds }: Prop
     }
   };
 
+  const formatPrice = (price: number) => {
+    return price.toLocaleString() + '원';
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h3 className="text-lg font-medium text-red-800">오류 발생</h3>
+            <p className="mt-2 text-sm text-red-700">{error.message}</p>
+            <button
+              onClick={fetchData}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              다시 시도
+            </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6 flex justify-between items-center border-b border-gray-200">
+          <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
             <h3 className="text-lg leading-6 font-medium text-gray-900">
               판매계획 목록
             </h3>
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <label className="inline-flex items-center">
-                  <input
-                    type="checkbox"
-                    className="form-checkbox h-4 w-4 text-blue-600"
-                    checked={searchFilters.season}
-                    onChange={(e) => setSearchFilters(prev => ({ ...prev, season: e.target.checked }))}
-                  />
-                  <span className="ml-2">운영시즌</span>
-                </label>
-                <label className="inline-flex items-center">
-                  <input
-                    type="checkbox"
-                    className="form-checkbox h-4 w-4 text-blue-600"
-                    checked={searchFilters.channel}
-                    onChange={(e) => setSearchFilters(prev => ({ ...prev, channel: e.target.checked }))}
-                  />
-                  <span className="ml-2">판매채널</span>
-                </label>
-                <label className="inline-flex items-center">
-                  <input
-                    type="checkbox"
-                    className="form-checkbox h-4 w-4 text-blue-600"
-                    checked={searchFilters.channelDetail}
-                    onChange={(e) => setSearchFilters(prev => ({ ...prev, channelDetail: e.target.checked }))}
-                  />
-                  <span className="ml-2">채널상세</span>
-                </label>
-                <label className="inline-flex items-center">
-                  <input
-                    type="checkbox"
-                    className="form-checkbox h-4 w-4 text-blue-600"
-                    checked={searchFilters.category}
-                    onChange={(e) => setSearchFilters(prev => ({ ...prev, category: e.target.checked }))}
-                  />
-                  <span className="ml-2">카테고리</span>
-                </label>
-                <label className="inline-flex items-center">
-                  <input
-                    type="checkbox"
-                    className="form-checkbox h-4 w-4 text-blue-600"
-                    checked={searchFilters.productName}
-                    onChange={(e) => setSearchFilters(prev => ({ ...prev, productName: e.target.checked }))}
-                  />
-                  <span className="ml-2">상품명</span>
-                </label>
-                <label className="inline-flex items-center">
-                  <input
-                    type="checkbox"
-                    className="form-checkbox h-4 w-4 text-blue-600"
-                    checked={searchFilters.setId}
-                    onChange={(e) => setSearchFilters(prev => ({ ...prev, setId: e.target.checked }))}
-                  />
-                  <span className="ml-2">세트품번</span>
-                </label>
-              </div>
               <div className="relative">
                 <input
                   type="text"
@@ -197,7 +159,7 @@ const SalesPlanListClient = ({ initialData, channels, categories, setIds }: Prop
               </div>
               <button
                 onClick={handleSearch}
-                className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 검색
               </button>
@@ -228,18 +190,18 @@ const SalesPlanListClient = ({ initialData, channels, categories, setIds }: Prop
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {currentItems.map((plan) => (
+                {data.map((plan) => (
                   <tr key={plan.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.season}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{format(new Date(plan.plan_date), 'yyyy-MM-dd')}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {format(new Date(plan.plan_date), 'yyyy-MM-dd')}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.plan_time?.substring(0, 5)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel?.channel_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_detail}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_category}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {setIds.find(item => item.id === Number(plan.set_id))?.set_id || plan.set_id}
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.set_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatPrice(plan.sale_price)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{plan.commission_rate}%</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
@@ -251,7 +213,7 @@ const SalesPlanListClient = ({ initialData, channels, categories, setIds }: Prop
             </table>
           </div>
 
-          <div className="bg-white px-4 py-3 flex items-center justify-center border-t border-gray-200 sm:px-6">
+          <div className="bg-white px-4 py-3 flex items-center justify-center border-t border-gray-200">
             <nav className="flex items-center justify-between">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -274,12 +236,13 @@ const SalesPlanListClient = ({ initialData, channels, categories, setIds }: Prop
           </div>
         </div>
       </div>
+
       <SalesPlanRegistrationModal 
         isOpen={isRegistrationModalOpen}
         onClose={() => setIsRegistrationModalOpen(false)}
         onSuccess={() => {
           setIsRegistrationModalOpen(false);
-          window.location.reload();
+          fetchData();
         }}
         channels={channels}
         categories={categories}
@@ -287,6 +250,4 @@ const SalesPlanListClient = ({ initialData, channels, categories, setIds }: Prop
       />
     </DashboardLayout>
   );
-};
-
-export default SalesPlanListClient;
+}

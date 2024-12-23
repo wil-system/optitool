@@ -37,6 +37,8 @@ interface Props {
 }
 
 const SalesPlanClient = ({ initialData }: Props) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
   
@@ -198,6 +200,73 @@ const SalesPlanClient = ({ initialData }: Props) => {
       is_active: set.is_active
     })));
   }, [sets]);
+
+  useEffect(() => {
+    try {
+      if (initialData) {
+        // 초기 데이터가 있으면 로딩 상태 해제
+        setLoading(false);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('데이터 로드 중 오류가 발생했습니다.'));
+      setLoading(false);
+    }
+  }, [initialData]);
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="text-gray-600">데이터를 불러오는 중...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-lg">
+            <div className="flex items-center space-x-3">
+              <svg className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="text-lg font-medium text-red-800">오류 발생</h3>
+            </div>
+            <p className="mt-2 text-sm text-red-700">{error.message}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+            >
+              다시 시도
+            </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!initialData.channels.length || !initialData.sets.length || !initialData.categories.length) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 max-w-lg">
+            <div className="flex items-center space-x-3">
+              <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <h3 className="text-lg font-medium text-gray-900">데이터가 없습니다</h3>
+            </div>
+            <p className="mt-2 text-sm text-gray-500">필요한 기초 데이터가 없습니다.</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -400,7 +469,7 @@ const SalesPlanClient = ({ initialData }: Props) => {
               </div>
 
 
-              {/* 다섯 번째 열에 판매가, 수수료, 목표 배치 */}
+              {/* 다섯 번�� 열에 판매가, 수수료, 목표 배치 */}
               <div className="col-span-3 grid grid-cols-3 gap-6">
                 <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -180,6 +180,48 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
     );
   }
 
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-lg">
+            <div className="flex items-center space-x-3">
+              <svg className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="text-lg font-medium text-red-800">오류 발생</h3>
+            </div>
+            <p className="mt-2 text-sm text-red-700">{error.message}</p>
+            <button
+              onClick={() => fetchData()}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+            >
+              다시 시도
+            </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!data.length) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 max-w-lg">
+            <div className="flex items-center space-x-3">
+              <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <h3 className="text-lg font-medium text-gray-900">데이터가 없습니다</h3>
+            </div>
+            <p className="mt-2 text-sm text-gray-500">표시할 판매실적이 없습니다.</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
