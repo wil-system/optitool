@@ -45,7 +45,7 @@ interface Props {
   setIds: any[];
 }
 
-export default function SalesPlanListClient({ initialData, channels: initialChannels, categories, setIds }: Props) {
+export default function SalesPlanListClient({ initialData, channels: initialChannels, categories: initialCategories, setIds }: Props) {
   const [data, setData] = useState<SalesPlan[]>(initialData);
   const [channels, setChannels] = useState(initialChannels);
   const [loading, setLoading] = useState(true);
@@ -54,6 +54,8 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [sets, setSets] = useState<any[]>(setIds);
 
   const fetchData = async () => {
     try {
@@ -75,10 +77,12 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
       
       setData(result.data);
       setChannels(result.channels);
+      setCategories(result.categories);
+      setSets(result.setIds);
       setTotalPages(result.totalPages);
       
     } catch (err) {
-      console.error('Error fetching data:', err);
+      console.error('Error:', err);
       setError(err instanceof Error ? err : new Error('알 수 없는 오류가 발생했습니다'));
     } finally {
       setLoading(false);
@@ -246,7 +250,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
         }}
         channels={channels}
         categories={categories}
-        setIds={setIds}
+        setIds={sets}
       />
     </DashboardLayout>
   );

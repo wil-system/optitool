@@ -66,15 +66,30 @@ export async function GET(request: Request) {
       throw error;
     }
 
-    // 채널 목록 조회
+    // 판매 채널 데이터 조회
     const { data: channels } = await supabase
       .from('sales_channels')
       .select('*')
       .order('channel_name');
 
+    // 세트품번 데이터 조회
+    const { data: setIds } = await supabase
+      .from('set_products')
+      .select('*')
+      .eq('is_active', true)
+      .order('id');
+
+    // 카테고리 데이터 조회
+    const { data: categories } = await supabase
+      .from('product_categories')
+      .select('*')
+      .order('category_name');
+
     return NextResponse.json({
       data: data || [],
       channels: channels || [],
+      setIds: setIds || [],
+      categories: categories || [],
       totalCount: count || 0,
       currentPage: page,
       totalPages: Math.ceil((count || 0) / pageSize)

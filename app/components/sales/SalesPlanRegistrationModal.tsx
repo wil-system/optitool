@@ -6,13 +6,32 @@ import { format } from 'date-fns';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
+interface Channel {
+  id: number;
+  channel_code: string;
+  channel_name: string;
+  channel_details?: string[];
+}
+
+interface Category {
+  id: number;
+  category_name: string;
+}
+
+interface SetProduct {
+  id: number;
+  set_id: string;
+  set_name: string;
+  is_active: boolean;
+}
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  channels: any[];
-  categories: any[];
-  setIds: any[];
+  channels: Channel[];
+  categories: Category[];
+  setIds: SetProduct[];
 }
 
 export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess, channels, categories, setIds }: Props) {
@@ -56,6 +75,12 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
       setFormData(initialFormData);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!setIds || setIds.length === 0) {
+      console.warn('세트품번 데이터가 비어있습니다.');
+    }
+  }, [setIds]);
 
   const handleChannelChange = (channelId: string) => {
     const selected = channels.find(ch => ch.id === Number(channelId));
@@ -260,15 +285,14 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
             <div>
               <label className="block text-sm font-medium text-gray-700">세트품번</label>
               <select
-                value={formData.set_id}
-                onChange={handleSetIdChange}
+                value={formData.set_id || ''}
+                onChange={(e) => setFormData({ ...formData, set_id: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                style={{ minWidth: '300px' }}
               >
                 <option value="">선택하세요</option>
-                {setIds.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.set_id}
+                {setIds.map((set) => (
+                  <option key={set.id} value={set.set_id}>
+                    {set.set_id} - {set.set_name}
                   </option>
                 ))}
               </select>
