@@ -1,32 +1,27 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
 
 // 세트 삭제 (비활성화)
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  const id = params.id;
-  
-  if (!id) {
-    return NextResponse.json(
-      { error: '세트 ID가 필요합니다.' },
-      { status: 400 }
-    );
-  }
-
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  const { id } = await params;
   try {
-    // set_products 테이블의 is_active를 false로 업데이트
+    if (!id) {
+      return NextResponse.json(
+        { error: '세트 ID가 필요합니다.' },
+        { status: 400 }
+      );
+    }
+
     const { error } = await supabase
       .from('set_products')
       .update({ is_active: false })
       .eq('id', id)
       .select();
 
-    if (error) {
-      console.error('Update error:', error);
-      throw error;
-    }
+    if (error) throw error;
 
     return NextResponse.json({ 
       success: true,
@@ -45,10 +40,10 @@ export async function DELETE(
 // 세트 수정
 export async function PUT(
   request: Request,
-  context: { params: { id: string } }
-) {
+  { params }: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  const { id } = await params;
   try {
-    const id = context.params.id;
     const data = await request.json();
 
     const { error } = await supabase
