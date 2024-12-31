@@ -120,7 +120,7 @@ export default function SetListPage() {
       }
 
       const { data, hasMore } = await response.json();
-      setSets(data || []);
+      setSets(data?.filter((set: any) => set.is_active !== false) || []);
       setHasMore(hasMore);
     } catch (error) {
       console.error('세트 목록 조회 중 오류:', error);
@@ -139,8 +139,29 @@ export default function SetListPage() {
     fetchSets();
   };
 
-  const handleDelete = (setId: string) => {
-    setDeleteTargetId(setId);
+  const handleDelete = async (id: string) => {
+    if (!confirm('정말 삭제하시겠습니까?')) return;
+
+    try {
+      const response = await fetch(`/api/sets/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || '삭제 실패');
+      }
+
+      await fetchSets();
+      alert('삭제되었습니다.');
+    } catch (error) {
+      console.error('Error:', error);
+      alert('삭제 중 오류가 발생했습니다.');
+    }
   };
 
   const confirmDelete = async () => {
@@ -200,9 +221,13 @@ export default function SetListPage() {
     }));
   };
 
+  const handleEdit = (set: SetProduct) => {
+    setEditingId(set.id);
+  };
+
   const handleSave = async (updatedSet: SetProduct) => {
     try {
-      const response = await fetch('/api/sets', {
+      const response = await fetch(`/api/sets/${updatedSet.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -214,12 +239,12 @@ export default function SetListPage() {
         throw new Error('수정 실패');
       }
 
-      setEditingId(null);
       await fetchSets();
-      alert('수정이 완료되었습니다.');
+      setEditingId(null);
+      alert('수정되었습니다.');
     } catch (error) {
-      console.error('세트 수정 중 오류:', error);
-      alert('세트 수정에 실패했습니다.');
+      console.error('Error:', error);
+      alert('수정 중 오류가 발생했습니다.');
     }
   };
 
@@ -342,13 +367,13 @@ export default function SetListPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                       <button 
-                        onClick={() => setEditingId(set.set_id)}
+                        onClick={() => handleEdit(set)}
                         className="text-blue-600 hover:text-blue-900 mr-2"
                       >
                         수정
                       </button>
                       <button 
-                        onClick={() => handleDelete(set.set_id)}
+                        onClick={() => handleDelete(set.id)}
                         className="text-red-600 hover:text-red-900"
                       >
                         삭제

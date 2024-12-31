@@ -61,13 +61,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <span>통계</span>
                 <ul className="ml-3 mt-1 space-y-1">
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <Link href="/dashboard/statistics/sales">상품별 통계</Link>
+                    <Link href="/dashboard/statistics/products">상품별 통계</Link>
                   </li>
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <Link href="/dashboard/statistics/sales">채널별 통계</Link>
+                    <Link href="/dashboard/statistics/channels">채널별 통계</Link>
                   </li>
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <Link href="/dashboard/statistics/sales">아소트 통계</Link>
+                    <Link href="/dashboard/statistics/assort">아소트 통계</Link>
                   </li>
                 </ul>
               </div>

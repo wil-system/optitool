@@ -175,18 +175,7 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
       alert('상품코드를 입력해주세요.');
       return false;
     }
-    if (!formData.sale_price) {
-      alert('판매가를 입력해주세요.');
-      return false;
-    }
-    if (!formData.commission_rate) {
-      alert('수수료율을 입력해주세요.');
-      return false;
-    }
-    if (!formData.target_quantity) {
-      alert('목표수량을 입력해주세요.');
-      return false;
-    }
+
     return true;
   };
 
