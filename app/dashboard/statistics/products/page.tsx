@@ -36,10 +36,16 @@ export default function ProductStatisticsPage() {
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [view, setView] = useState<'list' | 'chart'>('list');
-  const [period, setPeriod] = useState<'daily' | 'monthly' | 'yearly'>('monthly');
+  const [period, setPeriod] = useState<'daily' | 'monthly' | 'yearly' | 'custom'>('monthly');
   const [statistics, setStatistics] = useState<ProductStatistics[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+
+  const handleSearch = () => {
+    if (period === 'custom' && (!startDate || !endDate)) {
+      alert('기간을 선택해주세요.');
+      return;
+    }
+    fetchStatistics();
+  };
 
   const fetchStatistics = async () => {
     try {
@@ -47,15 +53,12 @@ export default function ProductStatisticsPage() {
         startDate: startDate?.toISOString() || '',
         endDate: endDate?.toISOString() || '',
         period,
-        page: currentPage.toString()
       });
 
       console.log('요청 파라미터:', params.toString());
 
       const response = await fetch(`/api/statistics/products?${params}`);
       const data = await response.json();
-      
-      console.log('API 응답:', data);
       
       if (data.error) {
         throw new Error(data.error);
@@ -68,10 +71,10 @@ export default function ProductStatisticsPage() {
   };
 
   useEffect(() => {
-    if (startDate && endDate) {
+    if (period !== 'custom') {
       fetchStatistics();
     }
-  }, [startDate, endDate, period, currentPage]);
+  }, [period]);
 
   return (
     <DashboardLayout>
@@ -79,14 +82,24 @@ export default function ProductStatisticsPage() {
         <h1 className="text-2xl font-bold mb-6">상품별 통계</h1>
         
         <div className="flex justify-between mb-6">
-          <div className="flex space-x-4">
-            <DateRangePicker
-              startDate={startDate}
-              endDate={endDate}
-              onStartDateChange={setStartDate}
-              onEndDateChange={setEndDate}
-            />
+          <div className="flex items-center space-x-4">
             <PeriodSelector period={period} onPeriodChange={setPeriod} />
+            {period === 'custom' && (
+              <>
+                <DateRangePicker
+                  startDate={startDate}
+                  endDate={endDate}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                />
+                <button
+                  onClick={handleSearch}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                >
+                  검색
+                </button>
+              </>
+            )}
           </div>
           <ViewToggle view={view} onViewChange={setView} />
         </div>

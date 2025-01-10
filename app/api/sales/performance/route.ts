@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
-import { format, addHours } from 'date-fns';
+import { format } from 'date-fns';
 
 export async function GET(request: Request) {
   try {
@@ -16,10 +16,12 @@ export async function GET(request: Request) {
     // 실적이 등록된 sales_plan_id 목록 조회
     const { data: performanceData } = await supabase
       .from('sales_performance')
-      .select('sales_plan_id');
+      .select('sales_plan_id')
+      .eq('is_active', true);
 
     const registeredPlanIds = performanceData?.map(item => item.sales_plan_id) || [];
 
+    // 판매계획 조회
     const { data: salesPlans, error: salesError } = await supabase
       .from('sales_plans')
       .select(`
@@ -30,6 +32,7 @@ export async function GET(request: Request) {
         `plan_date.lt.${today},` +
         `and(plan_date.eq.${today},plan_time.lt.${currentTime})`
       )
+      .eq('is_active', true)
       .not('id', 'in', `(${registeredPlanIds.join(',')})`)
       .order('plan_date', { ascending: false })
       .order('plan_time', { ascending: false })
@@ -37,10 +40,32 @@ export async function GET(request: Request) {
 
     if (salesError) throw salesError;
 
-    const formattedData = salesPlans?.map(plan => ({
-      ...plan,
-      channel_name: plan.channel?.channel_name || ''
-    })) || [];
+    // 세트 정보 별도 조회
+    const setIds = salesPlans?.map(plan => plan.set_id).filter(id => id != null) || [];
+    let setProducts: { id: number; set_id: string; set_name: string; }[] = [];
+    
+    if (setIds.length > 0) {
+      const { data: setData } = await supabase
+        .from('set_products')
+        .select('id, set_id, set_name')
+        .in('id', setIds)  // sales_plans의 set_id는 set_products의 id를 참조
+        .eq('is_active', true);
+      setProducts = setData || [];
+    }
+
+    // 데이터 포맷팅
+    const formattedData = salesPlans?.map(plan => {
+      const setProduct = setProducts.find(set => set.id === plan.set_id);
+      return {
+        ...plan,
+        channel_name: plan.channel?.channel_name || '',
+        set_info: setProduct ? {
+          id: setProduct.id,
+          set_id: setProduct.set_id,
+          set_name: setProduct.set_name
+        } : null
+      };
+    }) || [];
 
     const { count } = await supabase
       .from('sales_plans')

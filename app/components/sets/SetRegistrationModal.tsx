@@ -142,6 +142,16 @@ const SetRegistrationModal: React.FC<SetRegistrationModalProps> = ({ isOpen, onC
     
     const product = await searchByProductCode(productCode);
     if (product) {
+      const existingProductCodes = new Set(
+        productInputs[0].selectedProducts.map(p => p.product_code)
+      );
+
+      if (existingProductCodes.has(product.product_code)) {
+        alert('이미 선택된 상품입니다.');
+        setProductCode('');
+        return;
+      }
+
       setProductInputs(prev => prev.map(input => ({
         ...input,
         selectedProducts: [...input.selectedProducts, product]
@@ -185,11 +195,21 @@ const SetRegistrationModal: React.FC<SetRegistrationModalProps> = ({ isOpen, onC
 
   const handleSelectionConfirm = () => {
     const selectedProducts = matchingProducts.filter(p => selectedProductIds.has(p.id));
-    setProductInputs(prev => prev.map(input => 
-      input.id === currentInputId 
-        ? { ...input, selectedProducts: [...input.selectedProducts, ...selectedProducts] }
-        : input
-    ));
+    
+    setProductInputs(prev => prev.map(input => {
+      if (input.id === currentInputId) {
+        const existingProductIds = new Set(input.selectedProducts.map(p => p.id));
+        
+        const newProducts = selectedProducts.filter(p => !existingProductIds.has(p.id));
+        
+        return {
+          ...input,
+          selectedProducts: [...input.selectedProducts, ...newProducts]
+        };
+      }
+      return input;
+    }));
+
     setIsProductModalOpen(false);
     setSelectedProductIds(new Set());
   };

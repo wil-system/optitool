@@ -4,10 +4,32 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import { format } from 'date-fns';
 import Modal from '@/app/components/common/Modal';
+import SalesPlanRegistrationModal from '@/app/components/sales/SalesPlanRegistrationModal';
+import { ISalesPerformance, ISalesPlans } from '@/app/types/database';
+
+interface IChannel {
+  id: number;
+  channel_code: string;
+  channel_name: string;
+}
+
+interface ICategory {
+  id: number;
+  category_name: string;
+}
+
+interface ISetProduct {
+  id: number;
+  set_id: string;
+  set_name: string;
+  is_active: boolean;
+}
 
 interface Props {
-  initialData: any[];
-  channels: any[];
+  initialData: ISalesPerformance[];
+  channels: IChannel[];
+  categories: ICategory[];
+  setIds: ISetProduct[];
 }
 
 interface FormData {
@@ -23,61 +45,17 @@ interface FormData {
   xxxl120: number;
 }
 
-interface SalesPlan {
-  id: string;
-  season: string;
-  plan_date: string;
-  plan_time: string;
-  channel_code?: string;
-  channel_name: string;
-  channel_detail: string;
-  product_category: string;
-  product_name: string;
-  set_id: string;
-  sale_price: number;
-  commission_rate: number;
-  target_quantity: number;
-}
-
-interface PerformanceData {
-  salesPlanId: number;
-  performance: number;
-  achievementRate: number;
-  // ... 다른 필요한 필드들
-}
-
-interface SalesPerformance {
-  id: number;
-  sales_plan_id: number;
-  performance: number;
-  achievement_rate: number;
-  temperature: number;
-  created_at: string;
-  updated_at: string;
-  plan_date: string;
-  plan_time: string;
-  season: string;
-  channel_name: string;
-  channel_detail: string;
-  product_category: string;
-  product_name: string;
-  set_id: string;
-  sale_price: number;
-  target_quantity: number;
-  commission_rate: number;
-}
-
-export default function SalesPlanListClient({ initialData, channels }: Props) {
+export default function SalesPlanListClient() {
   const itemsPerPage = 10;
   
-  const [data, setData] = useState<SalesPerformance[]>([]);
+  const [data, setData] = useState<ISalesPlans[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<SalesPerformance | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<ISalesPlans | null>(null);
   const [formData, setFormData] = useState<FormData>({
     performance: 0,
     achievementRate: 0,
@@ -91,43 +69,71 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
     xxxl120: 0
   });
   const [searchTerm, setSearchTerm] = useState('');
-  const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<ISalesPlans[]>([]);
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const [searchFilters, setSearchFilters] = useState({
-    season: false,
-    channel: false,
-    channelDetail: false,
-    category: false,
-    productName: false,
-    setId: false
+    season: true,
+    channel: true,
+    channelDetail: true,
+    category: true,
+    productName: true,
+    setId: true
   });
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedPlanData, setSelectedPlanData] = useState<ISalesPlans | null>(null);
+  const [sets, setSets] = useState<ISetProduct[]>([]);
+  const [channels, setChannels] = useState<IChannel[]>([]);
+  const [categories, setCategories] = useState<ICategory[]>([]);
 
   const fetchData = async (page = 1) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`/api/sales/performance?page=${page - 1}&dataType=sales`);
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const params = new URLSearchParams({
+        page: String(page - 1),
+        dataType: 'sales'
+      });
+
+      // Promise.all을 사용하여 모든 데이터를 병렬로 가져오기
+      const [performanceResponse, setsResponse, channelsResponse, categoriesResponse] = await Promise.all([
+        fetch(`/api/sales/performance?${params}`),
+        fetch('/api/sets'),
+        fetch('/api/channels'),
+        fetch('/api/categories')
+      ]);
+
+      if (!performanceResponse.ok || !setsResponse.ok || !channelsResponse.ok || !categoriesResponse.ok) {
+        throw new Error('데이터를 불러오는데 실패했습니다.');
       }
-      
-      const result = await response.json();
-      
-      if (result.error) {
-        throw new Error(result.error);
+
+      const [performanceResult, setsResult, channelsResult, categoriesResult] = await Promise.all([
+        performanceResponse.json(),
+        setsResponse.json(),
+        channelsResponse.json(),
+        categoriesResponse.json()
+      ]);
+
+      if (performanceResult.error) {
+        throw new Error(performanceResult.error);
       }
-      
-      if (result.data) {
+
+      if (performanceResult.data) {
         if (page === 1) {
-          setData(result.data);
+          setData(performanceResult.data);
         } else {
-          setData(prev => [...prev, ...result.data]);
+          setData(prev => [...prev, ...performanceResult.data]);
         }
-        setHasMore(result.hasMore);
+        setHasMore(performanceResult.hasMore);
         setCurrentPage(page);
       }
+
+      // 추가 데이터 설정
+      setSets(setsResult.data || []);
+      setChannels(channelsResult.data || []);
+      setCategories(categoriesResult.data || []);
+
     } catch (error) {
-      
       setError(error instanceof Error ? error.message : '데이터를 불러오는 중 오류가 발생했습니다.');
       setData([]);
     } finally {
@@ -194,22 +200,33 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
     );
   }
 
-  const filteredPlans = data.filter(plan => {
-    if (appliedSearchTerm === '') return true;
-    
-    const searchValue = appliedSearchTerm.toLowerCase();
-    return (
-      (searchFilters.season && plan.season?.toLowerCase().includes(searchValue)) ||
-      (searchFilters.channel && plan.channel_name?.toLowerCase().includes(searchValue)) ||
-      (searchFilters.channelDetail && plan.channel_detail?.toLowerCase().includes(searchValue)) ||
-      (searchFilters.category && plan.product_category?.toLowerCase().includes(searchValue)) ||
-      (searchFilters.productName && plan.product_name?.toLowerCase().includes(searchValue)) ||
-      (searchFilters.setId && plan.set_id?.toLowerCase().includes(searchValue))
-    );
-  });
+  const handleSearch = () => {
+    if (!searchTerm.trim()) {
+      setIsSearchActive(false);
+      setSearchResults([]);
+      return;
+    }
 
-  const totalPages = Math.ceil(filteredPlans.length / itemsPerPage);
-  const currentItems = filteredPlans.slice(
+    const filteredData = data.filter(plan => {
+      const searchValue = searchTerm.toLowerCase();
+      return (
+        (searchFilters.season && plan.season?.toLowerCase().includes(searchValue)) ||
+        (searchFilters.channel && plan.channel_name?.toLowerCase().includes(searchValue)) ||
+        (searchFilters.channelDetail && plan.channel_detail?.toLowerCase().includes(searchValue)) ||
+        (searchFilters.category && plan.product_category?.toLowerCase().includes(searchValue)) ||
+        (searchFilters.productName && plan.product_name?.toLowerCase().includes(searchValue)) ||
+        (searchFilters.setId && plan.set_info?.set_id?.toString().toLowerCase().includes(searchValue))
+      );
+    });
+    
+    setSearchResults(filteredData);
+    setIsSearchActive(true);
+    setCurrentPage(1);
+  };
+
+  const displayData = isSearchActive ? searchResults : data;
+  const totalPages = Math.ceil(displayData.length / itemsPerPage);
+  const currentItems = displayData.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -218,22 +235,17 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
     return price.toLocaleString() + '원';
   };
 
-  const handleSearch = () => {
-    setAppliedSearchTerm(searchTerm);
-    setCurrentPage(1);
-  };
-
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleSearch();
     }
   };
 
-  const handleRowClick = (plan: SalesPerformance) => {
+  const handleRowClick = (plan: ISalesPlans) => {
     setSelectedRowId(Number(plan.id) === selectedRowId ? null : Number(plan.id));
   };
 
-  const handleRegisterClick = (plan: SalesPerformance, e: React.MouseEvent) => {
+  const handleRegisterClick = (plan: ISalesPlans, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedPlan(plan);
     setFormData({
@@ -295,6 +307,40 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
 
   const parseFormattedNumber = (value: string) => {
     return Number(value.replace(/,/g, ''));
+  };
+
+  const handleEditClick = (e: React.MouseEvent, plan: ISalesPlans) => {
+    e.stopPropagation();
+    setSelectedPlanData(plan);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setIsEditModalOpen(false);
+    fetchData(currentPage);
+  };
+
+  const handleDelete = async (e: React.MouseEvent, planId: number) => {
+    e.stopPropagation();
+    if (window.confirm('이 판매계획을 삭제하시겠습니까?')) {
+      try {
+        const response = await fetch(`/api/sales/performance/${planId}`, {
+          method: 'DELETE',
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || '삭제 실패');
+        }
+
+        alert('판매계획이 삭제되었습니다.');
+        fetchData(currentPage);
+      } catch (error) {
+        console.error('Error:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+      }
+    }
   };
 
   return (
@@ -390,6 +436,7 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase     tracking-wider"></th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">운영시즌</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">일자</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
@@ -401,7 +448,7 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">판매가</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">수수료</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">목표</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">등록</th>
+                  
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -415,17 +462,6 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
                         : 'hover:bg-gray-50'
                     }`}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.season}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{format(new Date(plan.plan_date), 'yyyy-MM-dd')}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.plan_time?.substring(0, 5)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_detail}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.set_id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatPrice(plan.sale_price)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{plan.commission_rate}%</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{plan.target_quantity.toLocaleString()}개</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                       <button
                         onClick={(e) => handleRegisterClick(plan, e)}
@@ -434,6 +470,32 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
                         등록
                       </button>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.season}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{format(new Date(plan.plan_date), 'yyyy-MM-dd')}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.plan_time?.substring(0, 5)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_detail}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_category}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.set_info?.set_id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatPrice(plan.sale_price)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{plan.commission_rate}%</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{plan.target_quantity.toLocaleString()}개</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                      <button
+                        onClick={(e) => handleEditClick(e, plan)}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mr-2"
+                      >
+                        수정
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(e, plan.id)}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      >
+                        삭제
+                      </button>
+                    </td>
+                    
                   </tr>
                 ))}
               </tbody>
@@ -573,6 +635,31 @@ export default function SalesPlanListClient({ initialData, channels }: Props) {
             </div>
           </div>
         </Modal>
+      )}
+
+      {isEditModalOpen && selectedPlanData && (
+        <SalesPlanRegistrationModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onSuccess={handleEditSuccess}
+          channels={channels}
+          categories={categories}
+          setIds={sets}
+          editData={{
+            ...selectedPlanData,
+            set_info: {
+              id: selectedPlanData.set_info?.id || 0,
+              set_id: selectedPlanData.set_info?.set_id || '',
+              set_name: selectedPlanData.set_info?.set_name || ''
+            },
+            channel_id: selectedPlanData.channel_id || 0,
+            channel_code: selectedPlanData.channel_code || '',
+            product_code: selectedPlanData.product_code || '',
+            product_summary: selectedPlanData.product_summary || '',
+            quantity_composition: selectedPlanData.quantity_composition || ''
+          } as ISalesPlans}
+          isPerformanceEdit={true}
+        />
       )}
     </DashboardLayout>
   );

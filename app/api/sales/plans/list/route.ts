@@ -1,104 +1,118 @@
-import { NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
+import { NextRequest, NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const page = Number(searchParams.get('page')) || 1;
-    const pageSize = Number(searchParams.get('pageSize')) || 10;
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get('page') || '1');
     const searchTerm = searchParams.get('searchTerm') || '';
-    const channelId = searchParams.get('channelId') || null;
-    const startDate = searchParams.get('startDate') || null;
-    const endDate = searchParams.get('endDate') || null;
+    
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentTime = now.toTimeString().split(' ')[0].slice(0, 5);
 
-    // 서울 시간대 기준 현재 날짜와 시간
-    const seoulDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' });
-    const now = new Date(seoulDate);
-
-    console.log('서울 현재 시간:', seoulDate);
-    console.log('현재 날짜:', now.toISOString().split('T')[0]);
-    console.log('현재 시간:', now.toTimeString().slice(0, 5));
-
-    let query = supabase
+    const { data: plans, error } = await supabase
       .from('sales_plans')
       .select(`
         *,
-        channel:sales_channels (
-          channel_name
+        channel:sales_channels(
+          id,
+          channel_code,
+          channel_name,
+          channel_details
         )
-      `, { count: 'exact' })
-      .or(
-        `plan_date.gt.${now.toISOString().split('T')[0]},and(plan_date.eq.${now.toISOString().split('T')[0]},plan_time.gte.${now.toTimeString().slice(0, 5)})`
-      )
-      .order('plan_date', { ascending: true })
-      .order('plan_time', { ascending: true });
-
-    // 검색어 필터링
-    if (searchTerm) {
-      query = query.ilike('set_name', `%${searchTerm}%`);
-    }
-
-    // 채널 필터링
-    if (channelId) {
-      query = query.eq('channel_id', channelId);
-    }
-
-    // 날짜 범위 필터링
-    if (startDate) {
-      query = query.gte('plan_date', startDate);
-    }
-    if (endDate) {
-      query = query.lte('plan_date', endDate);
-    }
-
-    // 페이지네이션 적용
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize - 1;
-    query = query.range(start, end);
-
-    const { data, error, count } = await query;
-
-    console.log('조회된 데이터:', data);
-    console.log('에러:', error);
-    console.log('총 개수:', count);
-
-    if (error) {
-      throw error;
-    }
-
-    // 판매 채널 데이터 조회
-    const { data: channels } = await supabase
-      .from('sales_channels')
-      .select('*')
-      .order('channel_name');
-
-    // 세트품번 데이터 조회
-    const { data: setIds } = await supabase
-      .from('set_products')
-      .select('*')
+      `)
       .eq('is_active', true)
-      .order('id');
+      .or(`plan_date.gt.${today},and(plan_date.eq.${today},plan_time.gte.${currentTime})`);
 
-    // 카테고리 데이터 조회
-    const { data: categories } = await supabase
-      .from('product_categories')
-      .select('*')
-      .order('category_name');
+    if (error) throw error;
+
+    const setIds = plans?.map(plan => plan.set_id).filter(id => id != null);
+    let setProducts: any[] = [];
+    if (setIds.length > 0) {
+      const { data: setData } = await supabase
+        .from('set_products')
+        .select('id, set_id')
+        .in('id', setIds)
+        .eq('is_active', true);
+      setProducts = setData || [];
+    }
+
+    let filteredPlans = plans?.map(plan => {
+      const setProduct = setProducts.find(set => set.id === plan.set_id);
+      return {
+        ...plan,
+        set_info: setProduct ? {
+          id: setProduct.id,
+          set_id: setProduct.set_id,
+          set_name: setProduct.set_name
+        } : null
+      };
+    }) || [];
+
+    if (searchTerm) {
+      const searchValue = searchTerm.toLowerCase();
+      filteredPlans = filteredPlans.filter(plan => {
+        return (
+          plan.season?.toLowerCase().includes(searchValue) ||
+          plan.channel?.channel_name?.toLowerCase().includes(searchValue) ||
+          plan.channel_detail?.toLowerCase().includes(searchValue) ||
+          plan.product_category?.toLowerCase().includes(searchValue) ||
+          plan.product_name?.toLowerCase().includes(searchValue) ||
+          plan.set_info?.set_id?.toString().toLowerCase().includes(searchValue)
+        );
+      });
+    }
+
+    const limit = 10;
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedPlans = filteredPlans.slice(startIndex, endIndex);
 
     return NextResponse.json({
-      data: data || [],
-      channels: channels || [],
-      setIds: setIds || [],
-      categories: categories || [],
-      totalCount: count || 0,
-      currentPage: page,
-      totalPages: Math.ceil((count || 0) / pageSize)
+      data: paginatedPlans,
+      totalPages: Math.ceil(filteredPlans.length / limit),
+      currentPage: page
     });
 
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
-      { error: '데이터 조회 중 오류가 발생했습니다.' },
+      { error: '데이터를 불러오는 중 오류가 발생했습니다.' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const supabase = createRouteHandlerClient({ cookies });
+    const data = await request.json();
+    
+    const { error } = await supabase
+      .from('sales_plans')
+      .insert([{ 
+        ...data, 
+        is_active: true,
+        created_at: new Date().toISOString()
+      }]);
+
+    if (error) throw error;
+
+    return NextResponse.json({ 
+      success: true,
+      message: '판매계획이 등록되었습니다.' 
+    });
+    
+  } catch (error) {
+    console.error('Error:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: '판매계획 등록 중 오류가 발생했습니다.' 
+      },
       { status: 500 }
     );
   }

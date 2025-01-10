@@ -31,6 +31,9 @@ const ProductRegistrationPage = () => {
   });
 
   const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [isUploading, setIsUploading] = useState(false);
+  const [shouldCancelUpload, setShouldCancelUpload] = useState(false);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -59,23 +62,48 @@ const ProductRegistrationPage = () => {
     }
   };
 
+  const cleanup = (reader: FileReader, fileInput: HTMLInputElement) => {
+    reader.abort();
+    abortController?.abort();
+    setIsUploading(false);
+    setProgress({ current: 0, total: 0 });
+    setShouldCancelUpload(false);
+    fileInput.value = '';
+    setAbortController(null);
+  };
+
   const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return;
     
-    const file = e.target.files[0];
+    const fileInput = e.target as HTMLInputElement;
+    const file = (fileInput.files as FileList)[0];
     const reader = new FileReader();
+    const controller = new AbortController();
+    setAbortController(controller);
+    setIsUploading(true);
+    setShouldCancelUpload(false);
 
     reader.onload = async (e) => {
-      const data = e.target?.result;
-      const workbook = XLSX.read(new Uint8Array(data as ArrayBuffer), { type: 'array' });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      
       try {
+        if (shouldCancelUpload) {
+          cleanup(reader, fileInput);
+          return;
+        }
+        const data = e.target?.result;
+        const workbook = XLSX.read(new Uint8Array(data as ArrayBuffer), { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { range: 1 }) as ExcelRow[];
-        setProgress({ current: 0, total: jsonData.length });
+        const validData = jsonData.filter(row => row['품목코드'] && row['품목코드'].trim() !== '');
+        setProgress({ current: 0, total: validData.length });
 
-        for (let i = 0; i < jsonData.length; i++) {
-          const row = jsonData[i];
+        for (let i = 0; i < validData.length; i++) {
+          if (shouldCancelUpload) {
+            console.log('업로드가 취소되었습니다.');
+            return;
+          }
+
+          const row = validData[i];
           const productData = {
             product_code: row['품목코드'],
             item_number: String(row['품목명']).match(/[A-Z]+(\d+)(?=[A-Z-])/)?.[1] || '',
@@ -91,7 +119,8 @@ const ProductRegistrationPage = () => {
           const response = await fetch('/api/products', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(productData)
+            body: JSON.stringify(productData),
+            signal: controller.signal
           });
 
           if (!response.ok) {
@@ -99,17 +128,37 @@ const ProductRegistrationPage = () => {
           }
 
           setProgress(prev => ({ ...prev, current: i + 1 }));
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
         
-        alert('업로드 완료');
-      } catch (error) {
-        alert('업로드 실패');
+        if (!shouldCancelUpload) {
+          alert('업로드가 완료되었습니다.');
+        }
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.log('업로드가 취소되었습니다.');
+          return;
+        }
+        console.error('업로드 중 오류 발생:', error);
+        alert('업로드 중 오류가 발생했습니다.');
       } finally {
-        setProgress({ current: 0, total: 0 });
+        cleanup(reader, fileInput);
       }
     };
 
+    reader.onerror = () => {
+      console.error('파일 읽기 오류');
+      cleanup(reader, fileInput);
+    };
+
     reader.readAsArrayBuffer(file);
+  };
+
+  const handleCancelUpload = async () => {
+    if (confirm('파일 업로드를 취소하시겠습니까?')) {
+      setShouldCancelUpload(true);
+      cleanup(new FileReader(), document.getElementById('excel-upload') as HTMLInputElement);
+    }
   };
 
   const content = (
@@ -287,17 +336,32 @@ const ProductRegistrationPage = () => {
         </div>
       </form>
 
-      {progress.total > 0 && (
-        <div className="mt-4">
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-blue-600 h-2 rounded-full transition-all"
-              style={{ width: `${(progress.current / progress.total) * 100}%` }}
-            />
+      {isUploading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+            <h3 className="text-lg font-semibold mb-4">파일 업로드 중...</h3>
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+              />
+            </div>
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-gray-600">
+                {progress.current} / {progress.total} 처리중...
+                <br />
+                <span className="text-xs text-gray-500">
+                  {Math.round((progress.current / progress.total) * 100)}% 완료
+                </span>
+              </p>
+              <button
+                onClick={handleCancelUpload}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+              >
+                취소
+              </button>
+            </div>
           </div>
-          <p className="text-center mt-2">
-            {progress.current} / {progress.total} 처리중...
-          </p>
         </div>
       )}
     </div>

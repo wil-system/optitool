@@ -1,0 +1,10 @@
+1. Next.js: Route Handler 우선 사용
+2. 모든 API 엔드포인트는 Route Handler를 사용하여 구현하세요.
+3. 데이터베이스 작업, 외부 API 호출, 인증 등 복잡한 서버 작업은 반드시 Route Handler를 사용하세요.
+4. Server Action은 단순 폼 제출 또는 간단한 데이터 처리에만 사용하세요.
+5. 프로젝트 내 라우팅은 Pages Router 대신 App Router를 사용하세요.
+6. 프로젝트 전반에 TypeScript를 사용하세요.
+7. 모든 컴포넌트는 타입 안정성을 위해 TypeScript를 사용하세요.
+8. 인터페이스 정의 시 이름 앞에 'I'를 접두사로 추가하세요.
+9. 데이터베이스 구조는 app\types\database.ts 에 정의되어 있습니다.
+10. 데이터베이스 구조는 모든 테이블에 대한 인터페이스를 포함하고 있습니다.

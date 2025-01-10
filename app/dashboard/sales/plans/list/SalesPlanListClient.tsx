@@ -4,28 +4,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import { format } from 'date-fns';
 import SalesPlanRegistrationModal from '@/app/components/sales/SalesPlanRegistrationModal';
-
-interface SalesPlan {
-  id: number;
-  season: string;
-  plan_date: string;
-  plan_time: string;
-  channel_id: number;
-  channel: {
-    channel_name: string;
-  };
-  channel_name: string;
-  channel_detail: string;
-  product_category: string;
-  product_name: string;
-  product_summary: string;
-  quantity_composition: string;
-  set_id: string;
-  product_code: string;
-  sale_price: number;
-  commission_rate: number;
-  target_quantity: number;
-}
+import { ISalesPlans } from '@/app/types/database';
 
 interface Channel {
   id: number;
@@ -38,15 +17,22 @@ interface Category {
   category_name: string;
 }
 
+interface SetProduct {
+  id: number;
+  set_id: string;
+  set_name: string;
+  is_active: boolean;
+}
+
 interface Props {
-  initialData: SalesPlan[];
+  initialData: ISalesPlans[];
   channels: Channel[];
   categories: Category[];
-  setIds: any[];
+  setIds: SetProduct[];
 }
 
 export default function SalesPlanListClient({ initialData, channels: initialChannels, categories: initialCategories, setIds }: Props) {
-  const [data, setData] = useState<SalesPlan[]>(initialData);
+  const [data, setData] = useState<ISalesPlans[]>(initialData);
   const [channels, setChannels] = useState(initialChannels);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -55,34 +41,60 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
   const [totalPages, setTotalPages] = useState(1);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [sets, setSets] = useState<any[]>(setIds);
+  const [sets, setSets] = useState<SetProduct[]>(setIds);
+  const [selectedPlan, setSelectedPlan] = useState<ISalesPlans | undefined>(undefined);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [searchFilters, setSearchFilters] = useState({
+    season: true,
+    channel: true,
+    channelDetail: true,
+    category: true,
+    productName: true,
+    setId: true
+  });
+  const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/sales/plans/list?page=${currentPage}&searchTerm=${searchTerm}`);
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        searchTerm: appliedSearchTerm,
+        ...(searchFilters.season && { filterSeason: 'true' }),
+        ...(searchFilters.channel && { filterChannel: 'true' }),
+        ...(searchFilters.channelDetail && { filterChannelDetail: 'true' }),
+        ...(searchFilters.category && { filterCategory: 'true' }),
+        ...(searchFilters.productName && { filterProductName: 'true' }),
+        ...(searchFilters.setId && { filterSetId: 'true' })
+      });
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const [plansResponse, setsResponse, channelsResponse, categoriesResponse] = await Promise.all([
+        fetch(`/api/sales/plans/list?${params}`),
+        fetch('/api/sets'),
+        fetch('/api/channels'),
+        fetch('/api/categories')
+      ]);
+      
+      if (!plansResponse.ok || !setsResponse.ok || !channelsResponse.ok || !categoriesResponse.ok) {
+        throw new Error('데이터를 불러오는데 실패했습니다.');
       }
       
-      const result = await response.json();
-      console.log('API 응답:', result);
+      const [plansResult, setsResult, channelsResult, categoriesResult] = await Promise.all([
+        plansResponse.json(),
+        setsResponse.json(),
+        channelsResponse.json(),
+        categoriesResponse.json()
+      ]);
 
-      if (result.error) {
-        throw new Error(result.error);
-      }
-      
-      setData(result.data);
-      setChannels(result.channels);
-      setCategories(result.categories);
-      setSets(result.setIds);
-      setTotalPages(result.totalPages);
+      setData(plansResult.data);
+      setTotalPages(plansResult.totalPages);
+      setSets(setsResult.data || []);
+      setChannels(channelsResult.data || []);
+      setCategories(categoriesResult.data || []);
       
     } catch (err) {
-      console.error('Error:', err);
       setError(err instanceof Error ? err : new Error('알 수 없는 오류가 발생했습니다'));
     } finally {
       setLoading(false);
@@ -91,9 +103,10 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
 
   useEffect(() => {
     fetchData();
-  }, [currentPage, searchTerm]);
+  }, [currentPage]);
 
   const handleSearch = () => {
+    setAppliedSearchTerm(searchTerm);
     setCurrentPage(1);
     fetchData();
   };
@@ -107,6 +120,59 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
   const formatPrice = (price: number) => {
     return price.toLocaleString() + '원';
   };
+
+  const handleRowClick = (plan: ISalesPlans) => {
+    setSelectedPlan(selectedPlan?.id === plan.id ? undefined : plan);
+  };
+
+  const handleEdit = (e: React.MouseEvent, plan: ISalesPlans) => {
+    e.stopPropagation();
+    setSelectedPlan(plan);
+    setIsEditMode(true);
+    setIsRegistrationModalOpen(true);
+  };
+
+  const handleDelete = async (e: React.MouseEvent, planId: number) => {
+    e.stopPropagation();
+    if (window.confirm('이 판매계획을 삭제하시겠습니까?')) {
+      try {
+        const response = await fetch(`/api/sales/plans/${planId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error('삭제 실패');
+        }
+
+        alert('판매계획이 삭제되었습니다.');
+        fetchData();
+        setSelectedPlan(undefined);
+      } catch (error) {
+        console.error('Error:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+      }
+    }
+  };
+
+  const handleModalClose = () => {
+    setIsRegistrationModalOpen(false);
+    setIsEditMode(false);
+    setSelectedPlan(undefined);
+  };
+
+  const filteredPlans = data.filter(plan => {
+    if (searchTerm === '') return true;
+    
+    const searchValue = searchTerm.toLowerCase();
+    return (
+      (searchFilters.season && plan.season?.toLowerCase().includes(searchValue)) ||
+      (searchFilters.channel && plan.channel?.channel_name?.toLowerCase().includes(searchValue)) ||
+      (searchFilters.channelDetail && plan.channel_detail?.toLowerCase().includes(searchValue)) ||
+      (searchFilters.category && plan.product_category?.toLowerCase().includes(searchValue)) ||
+      (searchFilters.productName && plan.product_name?.toLowerCase().includes(searchValue)) ||
+      (searchFilters.setId && plan.set_info?.set_id?.toLowerCase().includes(searchValue))
+    );
+  });
 
   if (loading) {
     return (
@@ -141,11 +207,67 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
     <DashboardLayout>
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
+          <div className="px-4 py-5 sm:px-6 flex justify-between items-center border-b border-gray-200">
             <h3 className="text-lg leading-6 font-medium text-gray-900">
               판매계획 목록
             </h3>
             <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    className="form-checkbox h-4 w-4 text-blue-600"
+                    checked={searchFilters.season}
+                    onChange={(e) => setSearchFilters(prev => ({ ...prev, season: e.target.checked }))}
+                  />
+                  <span className="ml-2">운영시즌</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    className="form-checkbox h-4 w-4 text-blue-600"
+                    checked={searchFilters.channel}
+                    onChange={(e) => setSearchFilters(prev => ({ ...prev, channel: e.target.checked }))}
+                  />
+                  <span className="ml-2">판매채널</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    className="form-checkbox h-4 w-4 text-blue-600"
+                    checked={searchFilters.channelDetail}
+                    onChange={(e) => setSearchFilters(prev => ({ ...prev, channelDetail: e.target.checked }))}
+                  />
+                  <span className="ml-2">채널상세</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    className="form-checkbox h-4 w-4 text-blue-600"
+                    checked={searchFilters.category}
+                    onChange={(e) => setSearchFilters(prev => ({ ...prev, category: e.target.checked }))}
+                  />
+                  <span className="ml-2">카테고리</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    className="form-checkbox h-4 w-4 text-blue-600"
+                    checked={searchFilters.productName}
+                    onChange={(e) => setSearchFilters(prev => ({ ...prev, productName: e.target.checked }))}
+                  />
+                  <span className="ml-2">상품명</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    className="form-checkbox h-4 w-4 text-blue-600"
+                    checked={searchFilters.setId}
+                    onChange={(e) => setSearchFilters(prev => ({ ...prev, setId: e.target.checked }))}
+                  />
+                  <span className="ml-2">세트품번</span>
+                </label>
+              </div>
               <div className="relative">
                 <input
                   type="text"
@@ -183,6 +305,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">운영시즌</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">일자</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품코드</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">판매채널</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">채널상세</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">카테고리</th>
@@ -194,22 +317,43 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {data.map((plan) => (
-                  <tr key={plan.id} className="hover:bg-gray-50">
+                {filteredPlans.map((plan) => (
+                  <tr 
+                    key={plan.id} 
+                    className="hover:bg-gray-50 cursor-pointer"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.season}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {format(new Date(plan.plan_date), 'yyyy-MM-dd')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.plan_time?.substring(0, 5)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_code}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel?.channel_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_detail}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_category}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.set_id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {plan.set_info?.set_id || '-'}
+                    </td>
+                    
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatPrice(plan.sale_price)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{plan.commission_rate}%</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                       {plan.target_quantity.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                      <button
+                        onClick={(e) => handleEdit(e, plan)}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mr-2"
+                      >
+                        수정
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(e, plan.id)}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      >
+                        삭제
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -241,17 +385,20 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
         </div>
       </div>
 
-      <SalesPlanRegistrationModal 
-        isOpen={isRegistrationModalOpen}
-        onClose={() => setIsRegistrationModalOpen(false)}
-        onSuccess={() => {
-          setIsRegistrationModalOpen(false);
-          fetchData();
-        }}
-        channels={channels}
-        categories={categories}
-        setIds={sets}
-      />
+      {isRegistrationModalOpen && (
+        <SalesPlanRegistrationModal
+          isOpen={isRegistrationModalOpen}
+          onClose={handleModalClose}
+          onSuccess={() => {
+            fetchData();
+            handleModalClose();
+          }}
+          channels={channels}
+          categories={categories}
+          setIds={sets}
+          editData={isEditMode ? selectedPlan : undefined}
+        />
+      )}
     </DashboardLayout>
   );
 }

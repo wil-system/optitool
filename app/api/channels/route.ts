@@ -12,6 +12,7 @@ export async function GET(request: Request) {
     let query = supabase
       .from('sales_channels')
       .select('*', { count: 'exact' })
+      .eq('is_active', true)
       .order('channel_code', { ascending: true });
 
     if (searchTerm && searchFields.length > 0) {
@@ -81,7 +82,7 @@ export async function DELETE(request: Request) {
 
     const { error } = await supabase
       .from('sales_channels')
-      .delete()
+      .update({ is_active: false })
       .eq('channel_code', code);
 
     if (error) throw error;

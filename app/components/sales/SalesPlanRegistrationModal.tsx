@@ -5,6 +5,7 @@ import Modal from '@/app/components/common/Modal';
 import { format } from 'date-fns';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { ISalesPlans } from '@/app/types/database';
 
 interface Channel {
   id: number;
@@ -32,9 +33,11 @@ interface Props {
   channels: Channel[];
   categories: Category[];
   setIds: SetProduct[];
+  editData?: ISalesPlans;
+  isPerformanceEdit?: boolean;
 }
 
-export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess, channels, categories, setIds }: Props) {
+export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess, channels, categories, setIds, editData, isPerformanceEdit }: Props) {
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
@@ -54,10 +57,15 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
     product_code: '',
     sale_price: '',
     commission_rate: '',
-    target_quantity: ''
+    target_quantity: '',
+    channel_detail: ''
   };
   
-  const [formData, setFormData] = useState(initialFormData);
+  const [formData, setFormData] = useState({
+    season_year: '',
+    season_type: 'SS',
+    ...initialFormData
+  });
   const [productCode, setProductCode] = useState('');
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -72,19 +80,54 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
       setFormattedSalePrice('');
       setFormattedCommissionRate('');
       setFormattedTarget('');
-      setFormData(initialFormData);
+      setFormData({
+        season_year: '',
+        season_type: 'SS',
+        ...initialFormData
+      });
     }
   }, [isOpen]);
 
   useEffect(() => {
-    if (!setIds || setIds.length === 0) {
-      console.warn('세트품번 데이터가 비어있습니다.');
+    if (editData) {
+      const seasonYear = editData.season.substring(0, 2);
+      const seasonType = editData.season.substring(2);
+      
+      const selectedSet = setIds.find(set => set.id === editData.set_info?.id);
+      
+      setFormData({
+        season_year: seasonYear,
+        season_type: seasonType as 'SS' | 'FW',
+        product_name: editData.product_name,
+        product_summary: editData.product_summary || '',
+        quantity_composition: editData.quantity_composition || '',
+        product_code: editData.product_code,
+        sale_price: editData.sale_price.toString(),
+        commission_rate: editData.commission_rate.toString(),
+        target_quantity: editData.target_quantity.toString(),
+        set_id: selectedSet?.set_id || '',
+        channel_detail: editData.channel_detail || ''
+      });
+
+      setSelectedDate(new Date(editData.plan_date));
+      setSelectedTime(new Date(`2000-01-01T${editData.plan_time}`));
+      
+      const channel = channels.find(ch => ch.id === editData.channel_id);
+      setSelectedChannel(channel || null);
+      
+      if (channel?.channel_details) {
+        setChannelDetails(channel.channel_details);
+      }
+      
+      const category = categories.find(cat => cat.category_name === editData.product_category);
+      setSelectedCategory(category || null);
     }
-  }, [setIds]);
+  }, [editData, channels, categories, setIds]);
 
   const handleChannelChange = (channelId: string) => {
     const selected = channels.find(ch => ch.id === Number(channelId));
     setSelectedChannel(selected || null);
+    
     if (selected?.channel_details) {
       setChannelDetails(selected.channel_details);
     } else {
@@ -179,14 +222,34 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
     return true;
   };
 
+  const handleSeasonYearChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
+    setFormData(prev => ({
+      ...prev,
+      season_year: value
+    }));
+  };
+
+  const handleSeasonTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      season_type: e.target.value
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
 
     try {
+      const selectedSet = setIds.find(set => set.set_id === formData.set_id);
+      if (!selectedSet) {
+        throw new Error('유효하지 않은 세트품번입니다.');
+      }
+
       const data = {
-        season: '24FW',
+        season: `${formData.season_year}${formData.season_type}`,
         plan_date: format(selectedDate!, 'yyyy-MM-dd'),
         plan_time: format(selectedTime!, 'HH:mm:ss'),
         channel_id: selectedChannel.id,
@@ -196,18 +259,22 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
         product_name: formData.product_name,
         product_summary: formData.product_summary,
         quantity_composition: formData.quantity_composition,
-        set_id: formData.set_id,
+        set_id: selectedSet.id,
         product_code: formData.product_code,
         sale_price: Number(formData.sale_price),
         commission_rate: Number(formData.commission_rate),
         target_quantity: Number(formData.target_quantity)
       };
 
-      console.log('전송 데이터:', data);
-
-      const response = await fetch('/api/sales/plans', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const url = editData 
+        ? `/api/sales/plans/${editData.id}`
+        : '/api/sales/plans';
+      
+      const response = await fetch(url, {
+        method: editData ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(data)
       });
 
@@ -216,11 +283,11 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
         throw new Error(errorData.error || '등록 실패');
       }
 
-      alert('판매계획이 등록되었습니다.');
+      alert(editData ? '판매계획이 수정되었습니다.' : '판매계획이 등록되었습니다.');
       onSuccess();
     } catch (error) {
       console.error('Error:', error);
-      alert(error instanceof Error ? error.message : '판매계획 등록 중 오류가 발생했습니다.');
+      alert(error instanceof Error ? error.message : '처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -234,6 +301,36 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">기본 정보</h3>
+            <div className="flex items-center space-x-2">
+              <div className="w-20">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  시즌연도
+                </label>
+                <input
+                  type="text"
+                  value={formData.season_year}
+                  onChange={handleSeasonYearChange}
+                  placeholder="YY"
+                  maxLength={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  required
+                />
+              </div>
+              <div className="w-24">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  시즌
+                </label>
+                <select
+                  value={formData.season_type}
+                  onChange={handleSeasonTypeChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  required
+                >
+                  <option value="SS">SS</option>
+                  <option value="FW">FW</option>
+                </select>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">날짜</label>
@@ -305,6 +402,8 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
               <label className="block text-sm font-medium text-gray-700">채널상세</label>
               <select
                 name="channel_detail"
+                value={formData.channel_detail}
+                onChange={(e) => setFormData({ ...formData, channel_detail: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
               >
                 <option value="">선택하세요</option>

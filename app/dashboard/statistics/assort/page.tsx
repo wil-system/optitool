@@ -39,10 +39,16 @@ export default function AssortStatisticsPage() {
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [view, setView] = useState<'list' | 'chart'>('list');
-  const [period, setPeriod] = useState<'daily' | 'monthly' | 'yearly'>('monthly');
+  const [period, setPeriod] = useState<'daily' | 'monthly' | 'yearly' | 'custom'>('monthly');
   const [statistics, setStatistics] = useState<AssortStatistics[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+
+  const handleSearch = () => {
+    if (period === 'custom' && (!startDate || !endDate)) {
+      alert('기간을 선택해주세요.');
+      return;
+    }
+    fetchStatistics();
+  };
 
   const fetchStatistics = async () => {
     try {
@@ -50,7 +56,6 @@ export default function AssortStatisticsPage() {
         startDate: startDate?.toISOString() || '',
         endDate: endDate?.toISOString() || '',
         period,
-        page: currentPage.toString()
       });
 
       const response = await fetch(`/api/statistics/assort?${params}`);
@@ -61,17 +66,16 @@ export default function AssortStatisticsPage() {
       }
 
       setStatistics(data.statistics || []);
-      setTotalPages(data.totalPages || 1);
     } catch (error) {
       console.error('통계 조회 중 오류:', error);
     }
   };
 
   useEffect(() => {
-    if (startDate && endDate) {
+    if (period !== 'custom') {
       fetchStatistics();
     }
-  }, [startDate, endDate, period, currentPage]);
+  }, [period]);
 
   const chartColors = [
     'rgba(255, 99, 132, 0.5)',
@@ -89,14 +93,24 @@ export default function AssortStatisticsPage() {
         <h1 className="text-2xl font-bold mb-6">아소트 통계</h1>
         
         <div className="flex justify-between mb-6">
-          <div className="flex space-x-4">
-            <DateRangePicker
-              startDate={startDate}
-              endDate={endDate}
-              onStartDateChange={setStartDate}
-              onEndDateChange={setEndDate}
-            />
+          <div className="flex items-center space-x-4">
             <PeriodSelector period={period} onPeriodChange={setPeriod} />
+            {period === 'custom' && (
+              <>
+                <DateRangePicker
+                  startDate={startDate}
+                  endDate={endDate}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                />
+                <button
+                  onClick={handleSearch}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                >
+                  검색
+                </button>
+              </>
+            )}
           </div>
           <ViewToggle view={view} onViewChange={setView} />
         </div>
@@ -134,25 +148,6 @@ export default function AssortStatisticsPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
-            <div className="mt-4 flex justify-center">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                className="px-4 py-2 border rounded-lg mr-2 disabled:opacity-50"
-              >
-                이전
-              </button>
-              <span className="mx-4 text-sm text-gray-700">
-                {currentPage} / {totalPages}
-              </span>
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="px-4 py-2 border rounded-lg disabled:opacity-50"
-              >
-                다음
-              </button>
             </div>
           </>
         ) : (
