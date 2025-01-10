@@ -1,15 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
 
 export async function GET(
-  request: Request,
-  { params }: { params: { setCode: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ setCode: string }> }
 ) {
   try {
+    const { setCode } = await params;
+    
     const { data, error } = await supabase
       .from('set_products')
       .select('individual_product_ids')
-      .eq('set_id', params.setCode)
+      .eq('set_id', setCode)
       .maybeSingle();
 
     if (error) throw error;

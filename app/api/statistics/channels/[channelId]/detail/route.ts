@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
 
 export async function GET(
-  request: Request,
-  context: { params: { channelId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ channelId: string }> }
 ) {
-  const { channelId } = await context.params;
+  const { channelId } = await params;
   const { searchParams } = new URL(request.url);
   const date = searchParams.get('date');
   const period = searchParams.get('period');
@@ -40,11 +40,9 @@ export async function GET(
           break;
         
         case 'monthly': {
-          const targetDate = new Date(date);
           const year = targetDate.getFullYear();
           const month = targetDate.getMonth() + 1;
           
-          // 다음 달 계산
           const nextMonth = new Date(targetDate);
           nextMonth.setMonth(nextMonth.getMonth() + 1);
           
