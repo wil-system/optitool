@@ -3,11 +3,10 @@ import { supabase } from '@/utils/supabase';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
-    const { is_active } = await request.json();
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json(
@@ -19,7 +18,7 @@ export async function PATCH(
     const { error } = await supabase
       .from('sales_performance')
       .update({ 
-        is_active: is_active,
+        is_active: false,
         updated_at: new Date().toISOString()
       })
       .eq('id', id);
