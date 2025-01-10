@@ -47,6 +47,8 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
   });
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedPerformance, setSelectedPerformance] = useState<SalesPerformance | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [performanceToDelete, setPerformanceToDelete] = useState<SalesPerformance | null>(null);
 
   const fetchData = async (page = 1) => {
     try {
@@ -165,6 +167,36 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
     } catch (error) {
       return timeString;
     }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      const response = await fetch(`/api/sales/performance/list/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_active: false }),
+      });
+
+      if (!response.ok) {
+        throw new Error('삭제 처리 중 오류가 발생했습니다.');
+      }
+
+      // 성공적으로 삭제된 후 데이터 새로고침
+      await fetchData(currentPage);
+      setIsDeleteModalOpen(false);
+      setPerformanceToDelete(null);
+    } catch (error) {
+      console.error('Error deleting performance:', error);
+      alert('삭제 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, item: SalesPerformance) => {
+    e.stopPropagation(); // 행 클릭 이벤트 전파 방지
+    setPerformanceToDelete(item);
+    setIsDeleteModalOpen(true);
   };
 
   if (loading) {
@@ -288,6 +320,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">목표</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">실적</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">달성률</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"> </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -308,6 +341,14 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(item.target_quantity)}개</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(item.performance)}개</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{item.achievement_rate}%</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                      <button
+                        onClick={(e) => handleDeleteClick(e, item)}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      >
+                        삭제
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -466,6 +507,40 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 삭제 확인 모달 추가 */}
+      {isDeleteModalOpen && performanceToDelete && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setIsDeleteModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-medium text-gray-900 mb-4">삭제 확인</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              정말로 이 판매실적을 삭제하시겠습니까?<br />
+              상품명: {performanceToDelete.product_name}<br />
+              세트품번: {performanceToDelete.set_id}
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => handleDelete(performanceToDelete.id)}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+              >
+                삭제
+              </button>
             </div>
           </div>
         </div>

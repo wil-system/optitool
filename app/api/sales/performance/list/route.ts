@@ -21,6 +21,7 @@ export async function GET(request: Request) {
           )
         )
       `)
+      .eq('is_active', true)
       .not('sales_plan_id', 'is', null)
       .order('created_at', { ascending: false });
 
