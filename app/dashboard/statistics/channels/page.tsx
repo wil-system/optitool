@@ -18,7 +18,7 @@ import {
 } from 'chart.js';
 import { Bar, Pie } from 'react-chartjs-2';
 import ChannelDetailModal from '@/app/components/statistics/ChannelDetailModal';
-import { IChannelDetail } from '@/app/types/statistics';
+import { IChannelDetailStatistics, IChannelStatistics, IDailyStatistics } from '@/app/types/statistics';
 
 ChartJS.register(
   CategoryScale,
@@ -30,19 +30,6 @@ ChartJS.register(
   PieController,
   ArcElement
 );
-
-interface ChannelStatistics {
-  id: string;
-  channel_name: string;
-  quantity: number;
-  amount: number;
-  share: number;
-}
-
-interface IDailyStatistics {
-  date: string;
-  channels: ChannelStatistics[];
-}
 
 type PeriodType = 'daily' | 'monthly' | 'yearly' | 'custom';
 
@@ -60,7 +47,7 @@ export default function ChannelStatisticsPage() {
   const [statistics, setStatistics] = useState<IDailyStatistics[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [chartViews, setChartViews] = useState<IChartView>({});
-  const [selectedChannel, setSelectedChannel] = useState<IChannelDetail[] | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<IChannelDetailStatistics[] | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchStatistics = async (currentPeriod = period) => {
@@ -195,7 +182,7 @@ export default function ChannelStatisticsPage() {
 
   const aggregateStatistics = (stats: IDailyStatistics[]): IDailyStatistics[] => {
     if (period === 'custom' && stats.length > 0) {
-      const channelTotals: { [key: string]: ChannelStatistics } = {};
+      const channelTotals: { [key: string]: IChannelStatistics } = {};
       
       stats.forEach(dailyStat => {
         dailyStat.channels.forEach(channel => {
@@ -354,16 +341,25 @@ export default function ChannelStatisticsPage() {
                         <table className="min-w-full divide-y divide-gray-200 table-fixed">
                           <thead className="bg-gray-50">
                             <tr>
-                              <th className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                              <th className="w-1/7 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                 채널명
                               </th>
-                              <th className="w-1/4 px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                                판매수량
+                              <th className="w-1/7 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                전체 판매수량
                               </th>
-                              <th className="w-1/4 px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                                판매금액
+                              <th className="w-1/7 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                전체 판매금액
                               </th>
-                              <th className="w-1/4 px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                              <th className="w-1/7 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                전체 목표
+                              </th>
+                              <th className="w-1/7 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                전체 실적
+                              </th>
+                              <th className="w-1/7 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                전체 달성률
+                              </th>
+                              <th className="w-1/7 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                                 점유율
                               </th>
                             </tr>
@@ -375,17 +371,26 @@ export default function ChannelStatisticsPage() {
                                 onClick={() => handleChannelClick(stat.id, dailyStats.date)}
                                 className="hover:bg-gray-50 cursor-pointer"
                               >
-                                <td className="w-1/4 px-6 py-4 whitespace-nowrap">
+                                <td className="w-0 px-4 py-3 whitespace-nowrap text-left">
                                   {stat.channel_name}
                                 </td>
-                                <td className="w-1/4 px-6 py-4 whitespace-nowrap text-right">
+                                <td className="w-1/7 px-4 py-3 whitespace-nowrap text-right">
                                   {stat.quantity.toLocaleString()}
                                 </td>
-                                <td className="w-1/4 px-6 py-4 whitespace-nowrap text-right">
+                                <td className="w-1/7 px-4 py-3 whitespace-nowrap text-right">
                                   {stat.amount.toLocaleString()}원
                                 </td>
-                                <td className="w-1/4 px-6 py-4 whitespace-nowrap text-right">
-                                  {stat.share.toFixed(1)}%
+                                <td className="w-1/7 px-4 py-3 whitespace-nowrap text-right">
+                                  {stat.target_quantity ? stat.target_quantity.toLocaleString() : '0'}개
+                                </td>
+                                <td className="w-1/7 px-4 py-3 whitespace-nowrap text-right">
+                                  {stat.performance ? stat.performance.toLocaleString() : '0'}개
+                                </td>
+                                <td className="w-1/7 px-4 py-3 whitespace-nowrap text-right">
+                                  {stat.achievement_rate != null ? stat.achievement_rate.toFixed(1) : '0'}%
+                                </td>
+                                <td className="w-1/7 px-4 py-3 whitespace-nowrap text-right">
+                                  {stat.share != null ? stat.share.toFixed(1) : '0'}%
                                 </td>
                               </tr>
                             ))}

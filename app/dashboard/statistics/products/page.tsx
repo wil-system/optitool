@@ -38,6 +38,7 @@ export default function ProductStatisticsPage() {
   const [view, setView] = useState<'list' | 'chart'>('list');
   const [period, setPeriod] = useState<'daily' | 'monthly' | 'yearly' | 'custom'>('monthly');
   const [statistics, setStatistics] = useState<ProductStatistics[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSearch = () => {
     if (period === 'custom' && (!startDate || !endDate)) {
@@ -47,26 +48,28 @@ export default function ProductStatisticsPage() {
     fetchStatistics();
   };
 
-  const fetchStatistics = async () => {
+  const fetchStatistics = async (currentPeriod = period) => {
+    setIsLoading(true);
     try {
       const params = new URLSearchParams({
-        startDate: startDate?.toISOString() || '',
-        endDate: endDate?.toISOString() || '',
-        period,
+        period: currentPeriod
       });
 
-      console.log('요청 파라미터:', params.toString());
+      if (currentPeriod === 'custom' && startDate && endDate) {
+        params.append('startDate', startDate.toISOString());
+        params.append('endDate', endDate.toISOString());
+      }
 
       const response = await fetch(`/api/statistics/products?${params}`);
       const data = await response.json();
       
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      setStatistics(data || []);
+      if (!response.ok) throw new Error(data.error || '데이터 조회 실패');
+      
+      setStatistics(data);
     } catch (error) {
       console.error('통계 조회 중 오류:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 

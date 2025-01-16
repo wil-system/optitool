@@ -15,10 +15,11 @@
     "@types/xlsx": "^0.0.35",
     "chart.js": "^4.4.7",
     "cross-env": "^7.0.3",
+    "date-fns": "^4.1.0",
     "next": "15.0.3",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
-    "react-datepicker": "^7.5.0",
+    "react-datepicker": "^7.6.0",
     "react-dom": "18.2.0",
     "swr": "^2.2.5",
     "xlsx": "^0.18.5"

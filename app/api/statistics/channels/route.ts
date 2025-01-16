@@ -1,33 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
-
-interface IChannelStatistics {
-  id: string;
-  channel_name: string;
-  quantity: number;
-  amount: number;
-  share: number;
-  date: string;
-}
-
-interface IQueryResult {
-  id: any;
-  performance: any;
-  sales_plans: {
-    id: any;
-    channel_id: any;
-    sales_channels: {
-      id: any;
-      channel_code: any;
-      channel_details: any[];
-    }[];
-  }[];
-}
-
-interface IDailyStatistics {
-  date: string;
-  channels: IChannelStatistics[];
-}
+import { IChannelStatistics } from '@/app/types/statistics';
 
 export async function GET(request: Request) {
   try {
@@ -52,10 +25,11 @@ export async function GET(request: Request) {
           id,
           channel_id,
           plan_date,
+          target_quantity,
           sales_channels!sales_plans_channel_id_fkey (
             id,
             channel_code,
-            channel_details
+            channel_name
           )
         )
       `)
@@ -111,7 +85,7 @@ export async function GET(request: Request) {
         KST변환날짜: kstDate.toISOString(),
         그룹키: groupKey,
         표시날짜: originalDate,
-        채널: channel.channel_details[0]
+        채널: channel.channel_name
       });
 
       if (!acc[groupKey]) {
@@ -122,11 +96,14 @@ export async function GET(request: Request) {
       if (!acc[groupKey][channelId]) {
         acc[groupKey][channelId] = {
           id: channelId.toString(),
-          channel_name: channel.channel_details[0] || '알 수 없음',
+          channel_name: channel.channel_name,
           quantity: 0,
           amount: 0,
+          target_quantity: 0,
+          performance: 0,
+          achievement_rate: 0,
           share: 0,
-          date: originalDate // 항상 원본 날짜 사용
+          date: originalDate
         };
       }
 
@@ -142,6 +119,9 @@ export async function GET(request: Request) {
 
       acc[groupKey][channelId].quantity += quantity;
       acc[groupKey][channelId].amount += curr.performance || 0;
+      acc[groupKey][channelId].target_quantity += curr.sales_plans?.target_quantity || 0;
+      acc[groupKey][channelId].performance += curr.performance || 0;
+      acc[groupKey][channelId].achievement_rate = (acc[groupKey][channelId].performance / acc[groupKey][channelId].target_quantity) * 100;
       return acc;
     }, {});
 

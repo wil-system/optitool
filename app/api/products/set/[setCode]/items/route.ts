@@ -8,19 +8,36 @@ export async function GET(
   try {
     const { setCode } = await params;
     
-    const { data, error } = await supabase
+    // 1. 먼저 set_products에서 individual_product_ids 가져오기
+    const { data: setData, error: setError } = await supabase
       .from('set_products')
       .select('individual_product_ids')
-      .eq('set_id', setCode)
-      .maybeSingle();
+      .eq('id', setCode)
+      .single();
 
-    if (error) throw error;
-    if (!data) return NextResponse.json([]);
+    if (setError) throw setError;
+    if (!setData?.individual_product_ids) return NextResponse.json([]);
 
-    const productIds = data.individual_product_ids?.split(',')
-      ?.map((id: string) => id.trim()) || [];
+    // 2. individual_product_ids를 배열로 변환
+    const productCodes = setData.individual_product_ids
+      .toString()
+      .split(',')
+      .map((code: string) => code.trim())
+      .filter((code: string) => code.length > 0);
 
-    return NextResponse.json(productIds);
+    // 3. products 테이블에서 해당 product_code에 매칭되는 상품 정보 조회
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select(`
+        product_code,
+        product_name
+      `)
+      .in('product_code', productCodes);
+
+    if (productsError) throw productsError;
+
+    return NextResponse.json(productsData || []);
+
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(

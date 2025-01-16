@@ -6,5 +6,82 @@
 6. 프로젝트 전반에 TypeScript를 사용하세요.
 7. 모든 컴포넌트는 타입 안정성을 위해 TypeScript를 사용하세요.
 8. 인터페이스 정의 시 이름 앞에 'I'를 접두사로 추가하세요.
-9. 데이터베이스 구조는 app\types\database.ts 에 정의되어 있습니다.
-10. 데이터베이스 구조는 모든 테이블에 대한 인터페이스를 포함하고 있습니다.
+9. 데이터베이스는 postgres 사용
+10. 아래는 전체 데이터베이스 구조입니다.
+- sales_performance
+  - id
+  - sales_plan_id
+  - performance
+  - achievement_rate
+  - temperature
+  - xs_size
+  - s_size
+  - m_size
+  - l_size
+  - xl_size
+  - xxl_size
+  - fourxl_size
+  - created_at
+  - updated_at
+  - is_active
+
+- sales_plans
+  - id
+  - season
+  - plan_date
+  - plan_time
+  - channel_code
+  - channel_detail
+  - product_category
+  - product_name
+  - product_summary
+  - quantity_composition
+  - set_id
+  - product_code
+  - sale_price
+  - commission_rate
+  - target_quantity
+  - created_at
+  - updated_at
+  - channel_id
+  - is_active
+
+- sales_channels
+  - channel_code
+  - channel_name
+  - channel_details
+  - remarks
+  - created_at
+  - updated_at
+  - id
+  - is_active
+
+- set_products
+  - set_id
+  - set_name
+  - individual_product_ids
+  - remarks
+  - created_at
+  - updated_at
+  - is_active
+
+- products
+  - id
+  - product_code
+  - item_number
+  - product_name
+  - specification
+  - purchase_price
+  - selling_price
+  - barcode_info
+  - barcode
+  - tag_price
+  - remarks
+  - created_at
+  - updated_at
+
+- product_categories
+  - id
+  - category_name
+  - created_at
+  - updated_at

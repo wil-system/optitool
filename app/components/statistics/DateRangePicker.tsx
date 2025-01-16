@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { ko } from 'date-fns/locale';
+import { registerLocale } from 'react-datepicker';
+
+registerLocale('ko', ko); 
 
 interface DateRangePickerProps {
   startDate: Date | null;
@@ -26,6 +30,7 @@ export default function DateRangePicker({
         dateFormat="yyyy-MM-dd"
         className="px-3 py-2 border rounded"
         placeholderText="시작일"
+        locale="ko" 
       />
       <span>~</span>
       <DatePicker
@@ -38,6 +43,7 @@ export default function DateRangePicker({
         dateFormat="yyyy-MM-dd"
         className="px-3 py-2 border rounded"
         placeholderText="종료일"
+        locale="ko" 
       />
     </div>
   );
