@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
+import LoadingSpinner from '@/app/components/common/LoadingSpinner';
 
 interface ScheduleItem {
   id: string;
@@ -161,8 +162,8 @@ export default function SchedulePage() {
 
   useEffect(() => {
     const fetchSalesPlans = async () => {
+      setIsLoading(true);
       try {
-        // 현재 날짜를 한국 시간 기준으로 설정
         const koreaDate = new Date(currentDate.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
         const year = koreaDate.getFullYear();
         const month = (koreaDate.getMonth() + 1).toString();
@@ -245,6 +246,16 @@ export default function SchedulePage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[500px]">
+          <LoadingSpinner />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="bg-white rounded-lg shadow p-6">
@@ -290,10 +301,11 @@ export default function SchedulePage() {
           
           {generateCalendarDays().map((day, index) => {
             const today = new Date();
+            const koreaToday = new Date(today.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
             const isToday = 
-              today.getDate() === day.date && 
-              today.getMonth() === currentDate.getMonth() && 
-              today.getFullYear() === currentDate.getFullYear();
+              koreaToday.getDate() === day.date && 
+              koreaToday.getMonth() === currentDate.getMonth() && 
+              koreaToday.getFullYear() === currentDate.getFullYear();
 
             return (
               <div 
