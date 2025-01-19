@@ -19,6 +19,7 @@ import {
 import { Bar, Pie } from 'react-chartjs-2';
 import { IChannelDetailStatistics, IChannelStatistics, IDailyStatistics } from '@/app/types/statistics';
 import { format } from 'date-fns';
+import LoadingSpinner from '@/app/components/common/LoadingSpinner';
 
 ChartJS.register(
   CategoryScale,
@@ -246,8 +247,8 @@ export default function ChannelStatisticsPage() {
         </div>
 
         {isLoading ? (
-          <div className="text-center py-10">
-            <p className="text-gray-500">데이터를 불러오는 중...</p>
+          <div className="flex justify-center items-center h-64">
+            <LoadingSpinner />
           </div>
         ) : statistics.length === 0 ? (
           <div className="text-center py-10">

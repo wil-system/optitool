@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
+import LoadingSpinner from '@/app/components/common/LoadingSpinner';
 
 interface Props {
   initialData: any[];
@@ -210,10 +211,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="text-gray-600">데이터를 불러오는 중...</p>
-          </div>
+          <LoadingSpinner />
         </div>
       </DashboardLayout>
     );
@@ -347,7 +345,6 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.product_category}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.product_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.set_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.set_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(item.target_quantity)}개</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(item.performance)}개</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{item.achievement_rate}%</td>

@@ -5,6 +5,7 @@ import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import { format } from 'date-fns';
 import SalesPlanRegistrationModal from '@/app/components/sales/SalesPlanRegistrationModal';
 import { ISalesPlans } from '@/app/types/database';
+import LoadingSpinner from '@/app/components/common/LoadingSpinner';
 
 interface Channel {
   id: number;
@@ -178,7 +179,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <LoadingSpinner />
         </div>
       </DashboardLayout>
     );

@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import Modal from '@/app/components/common/Modal';
 import SalesPlanRegistrationModal from '@/app/components/sales/SalesPlanRegistrationModal';
 import { ISalesPerformance, ISalesPlans } from '@/app/types/database';
+import LoadingSpinner from '@/app/components/common/LoadingSpinner';
 
 interface IChannel {
   id: number;
@@ -164,10 +165,7 @@ export default function SalesPlanListClient() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="text-gray-600">데이터를 불러오는 중...</p>
-          </div>
+          <LoadingSpinner />
         </div>
       </DashboardLayout>
     );

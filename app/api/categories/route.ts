@@ -8,10 +8,7 @@ export async function GET() {
       .select('*')
       .order('id', { ascending: true });
 
-    if (error) {
-      console.error('Supabase error:', error);
-      throw error;
-    }
+    if (error) throw error;
 
     return NextResponse.json({ data });
   } catch (error) {
@@ -26,11 +23,21 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
+    const { category_name } = body;
+
+    if (!category_name || typeof category_name !== 'string' || category_name.trim() === '') {
+      return NextResponse.json(
+        { error: '카테고리명은 필수입니다.' },
+        { status: 400 }
+      );
+    }
+
     const { data, error } = await supabase
       .from('product_categories')
       .insert([{ 
-        category_name: body.name
+        category_name: category_name.trim(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }])
       .select()
       .single();

@@ -5,6 +5,7 @@ import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import { supabase } from '@/utils/supabase';
 import type { Product } from '@/types/product';
 import ProductRegistrationModal from '@/app/components/products/ProductRegistrationModal';
+import LoadingSpinner from '@/app/components/common/LoadingSpinner';
 
 export default function ProductListPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -365,7 +366,9 @@ export default function ProductListPage() {
           </div>
 
           {isLoading ? (
-            <div className="text-center py-10">로딩 중...</div>
+            <div className="flex items-center justify-center h-64">
+              <LoadingSpinner />
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">

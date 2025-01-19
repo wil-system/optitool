@@ -4,6 +4,7 @@ import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import useSWR from 'swr';
 import ChannelRegistrationModal from '@/app/components/channels/ChannelRegistrationModal';
 import type { ISalesChannels } from '@/app/types/database';
+import LoadingSpinner from '@/app/components/common/LoadingSpinner';
 
 interface EditableRowProps {
   channel: ISalesChannels;
@@ -252,6 +253,14 @@ export default function ChannelListPage() {
       </div>
     );
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
     <DashboardLayout>

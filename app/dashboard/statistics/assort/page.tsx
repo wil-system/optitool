@@ -8,6 +8,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Toolti
 import { Bar } from 'react-chartjs-2';
 import { IAssortStatistics } from '@/app/types/statistics';
 import { format } from 'date-fns';
+import LoadingSpinner from '@/app/components/common/LoadingSpinner';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -277,7 +278,11 @@ export default function AssortStatisticsPage() {
 
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+            <LoadingSpinner />
+          </div>
+        ) : Object.keys(statistics).length === 0 ? (
+          <div className="text-center py-10">
+            <p className="text-gray-500">표시할 데이터가 없습니다.</p>
           </div>
         ) : (
           <div>
