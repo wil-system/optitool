@@ -260,7 +260,7 @@ export default function ChannelStatisticsPage() {
                 console.log('렌더링 데이터:', dailyStats);
                 return (
                   <div key={dailyStats.date} className="bg-white rounded-lg shadow">
-                    <div className="px-6 py-4 bg-gray-50 rounded-t-lg flex justify-between items-center">
+                    <div className="px-4 py-4 bg-gray-50 rounded-t-lg flex justify-between items-center">
                       <h3 className="text-2xl font-semibold text-gray-900">
                         {formatDateRange(statistics)}
                       </h3>
