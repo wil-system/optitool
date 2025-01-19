@@ -2,26 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
 
 interface ISalesCalendarResponse {
-  id: number;
+  id: string;
   plan_date: string;
   plan_time: string;
-  channel_code: string;
   channel_detail: string;
   product_name: string;
   product_category: string;
   target_quantity: number;
   sale_price: number;
   commission_rate: number;
-  sales_channels: {
+  sales_channels?: {
     channel_name: string;
   };
-  set_products: {
+  set_products?: {
     set_name: string;
   };
 }
 
 interface IFormattedSalesPlan {
-  id: number;
+  id: string;
   plan_date: string;
   plan_time: string;
   channel_name: string;
@@ -38,18 +37,19 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const year = searchParams.get('year');
-    const month = searchParams.get('month')?.padStart(2, '0');
+    const month = searchParams.get('month');
 
     if (!year || !month) {
       return NextResponse.json(
-        { error: '년도와 월을 지정해주세요.' },
+        { error: '연도와 월을 지정해주세요.' },
         { status: 400 }
       );
     }
 
-    const startDate = `${year}-${month}-01`;
-    const endDate = new Date(parseInt(year), parseInt(month), 0);
-    const endDateStr = `${year}-${month}-${endDate.getDate()}`;
+    const startDate = `${year}-${month.padStart(2, '0')}-01`;
+    const endDate = new Date(parseInt(year), parseInt(month), 0)
+      .toISOString()
+      .split('T')[0];
 
     const { data, error } = await supabase
       .from('sales_plans')
@@ -57,37 +57,27 @@ export async function GET(request: NextRequest) {
         id,
         plan_date,
         plan_time,
-        channel_code,
         channel_detail,
         product_name,
         product_category,
         target_quantity,
         sale_price,
         commission_rate,
-        sales_channels!sales_plans_channel_id_fkey (
-            id,
-            channel_code,
-            channel_name,
-            channel_details
+        sales_channels (
+          channel_name
         ),
-        set_products(
-          id,
-          set_id,
-          set_name,
-          individual_product_ids,
-          is_active
+        set_products (
+          set_name
         )
       `)
       .gte('plan_date', startDate)
-      .lte('plan_date', endDateStr)
-      .eq('is_active', true)
-      .order('plan_time');
+      .lte('plan_date', endDate)
+      .eq('is_active', true);
 
     if (error) {
       throw error;
     }
 
-    // 데이터 포맷팅
     const formattedData = (data as unknown as ISalesCalendarResponse[]).map((plan): IFormattedSalesPlan => ({
       id: plan.id,
       plan_date: plan.plan_date,

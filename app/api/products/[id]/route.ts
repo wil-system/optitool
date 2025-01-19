@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
 
 export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await params;
     const body = await request.json();
 
     const { data, error } = await supabase
@@ -29,11 +29,18 @@ export async function PUT(
 
     if (error) throw error;
 
-    return NextResponse.json(data);
+    return NextResponse.json({
+      success: true,
+      message: '상품이 수정되었습니다.',
+      data
+    });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
-      { error: '상품 수정 중 오류가 발생했습니다.' },
+      { 
+        success: false,
+        error: '상품 수정 중 오류가 발생했습니다.' 
+      },
       { status: 500 }
     );
   }
