@@ -89,7 +89,8 @@ export async function GET(request: Request) {
         product_name: item.sales_plans?.product_name || '',
         set_id: setProduct?.set_id || '',
         set_name: setProduct?.set_name || '',
-        target_quantity: Number(item.sales_plans?.target_quantity) || 0
+        target_quantity: Number(item.sales_plans?.target_quantity) || 0,
+        sale_price: Number(item.sales_plans?.sale_price) || 0
       };
     }) || [];
 

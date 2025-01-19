@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 
 interface ScheduleItem {
@@ -10,9 +10,20 @@ interface ScheduleItem {
   type: '회의' | '업무' | '기타';
 }
 
+interface SalesPlan {
+  id: number;
+  plan_date: string;
+  plan_time: string;
+  channel_name: string;
+  product_name: string;
+  target_quantity: number;
+  set_name: string;
+}
+
 interface DaySchedule {
   date: number;
   schedules: ScheduleItem[];
+  salesPlans: SalesPlan[];
 }
 
 interface ScheduleModalProps {
@@ -101,20 +112,84 @@ const ScheduleItem = ({ schedule, onClick }: { schedule: ScheduleItem; onClick: 
   );
 };
 
+// 채널별 색상 매핑을 위한 객체
+const channelColors: { [key: string]: string } = {};
+const colorClasses = [
+  'bg-blue-100 text-blue-800',
+  'bg-green-100 text-green-800',
+  'bg-purple-100 text-purple-800',
+  'bg-pink-100 text-pink-800',
+  'bg-yellow-100 text-yellow-800',
+  'bg-indigo-100 text-indigo-800',
+  'bg-red-100 text-red-800',
+  'bg-orange-100 text-orange-800',
+  'bg-teal-100 text-teal-800',
+  'bg-cyan-100 text-cyan-800',
+  'bg-lime-100 text-lime-800',
+  'bg-emerald-100 text-emerald-800',
+  'bg-sky-100 text-sky-800',
+  'bg-violet-100 text-violet-800',
+  'bg-fuchsia-100 text-fuchsia-800',
+  'bg-rose-100 text-rose-800',
+  'bg-amber-100 text-amber-800',
+  'bg-blue-200 text-blue-900',
+  'bg-green-200 text-green-900',
+  'bg-purple-200 text-purple-900',
+  'bg-pink-200 text-pink-900',
+  'bg-indigo-200 text-indigo-900',
+  'bg-red-200 text-red-900',
+  'bg-orange-200 text-orange-900',
+];
+
+// 채널별 색상 할당 함수
+const getChannelColor = (channelName: string) => {
+  if (!channelColors[channelName]) {
+    const colorIndex = Object.keys(channelColors).length % colorClasses.length;
+    channelColors[channelName] = colorClasses[colorIndex];
+  }
+  return channelColors[channelName];
+};
+
 export default function SchedulePage() {
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filterType, setFilterType] = useState<'전체' | '회의' | '업무' | '기타'>('전체');
   const [currentDate, setCurrentDate] = useState(new Date());
-  
-  // 달력 데이터 생성
+  const [salesPlans, setSalesPlans] = useState<SalesPlan[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSalesPlans = async () => {
+      try {
+        // 현재 날짜를 한국 시간 기준으로 설정
+        const koreaDate = new Date(currentDate.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+        const year = koreaDate.getFullYear();
+        const month = (koreaDate.getMonth() + 1).toString();
+        
+        const response = await fetch(`/api/sales/calendar?year=${year}&month=${month}`);
+        const result = await response.json();
+        
+        if (result.data) {
+          setSalesPlans(result.data);
+        }
+      } catch (error) {
+        console.error('판매계획 조회 중 오류:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSalesPlans();
+  }, [currentDate]);
+
   const generateCalendarDays = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
+    // 첫날과 마지막 날도 한국 시간 기준으로 설정
+    const firstDay = new Date(new Date(year, month, 1).toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const lastDay = new Date(new Date(year, month + 1, 0).toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
     
     const days: DaySchedule[] = [];
     
@@ -123,15 +198,29 @@ export default function SchedulePage() {
     for (let i = firstDayOfWeek - 1; i >= 0; i--) {
       days.push({
         date: new Date(year, month, -i).getDate(),
-        schedules: []
+        schedules: [],
+        salesPlans: []
       });
     }
     
     // 현재 달의 날짜들 채우기
     for (let i = 1; i <= lastDay.getDate(); i++) {
+      // 날짜 형식을 YYYY-MM-DD로 맞추기
+      const currentDate = new Date(year, month, i);
+      const formattedDate = currentDate.toLocaleDateString('fr-CA', { // fr-CA 로케일은 YYYY-MM-DD 형식을 반환
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'Asia/Seoul'
+      });
+      
+      const daySchedules = schedules.filter(s => s.time.split(' ')[0] === formattedDate);
+      const daySalesPlans = salesPlans.filter(p => p.plan_date === formattedDate);
+      
       days.push({
         date: i,
-        schedules: []
+        schedules: daySchedules,
+        salesPlans: daySalesPlans
       });
     }
     
@@ -187,23 +276,9 @@ export default function SchedulePage() {
 
         <div className="mb-4 flex justify-between items-center">
           <div className="flex gap-2">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value as typeof filterType)}
-              className="p-2 border rounded"
-            >
-              <option value="전체">전체</option>
-              <option value="회의">회의</option>
-              <option value="업무">업무</option>
-              <option value="기타">기타</option>
-            </select>
+
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-          >
-            새 일정
-          </button>
+
         </div>
 
         <div className="grid grid-cols-7 gap-1">
@@ -213,32 +288,46 @@ export default function SchedulePage() {
             </div>
           ))}
           
-          {generateCalendarDays().map((day, index) => (
-            <div 
-              key={index}
-              className="min-h-[120px] p-2 border border-gray-200 hover:bg-gray-50"
-              onClick={() => {
-                setSelectedSchedule(null);
-                setIsModalOpen(true);
-              }}
-            >
-              <div className="text-sm mb-1">{day.date}</div>
-              <div className="space-y-1">
-                {schedules
-                  .filter(s => filterType === '전체' || s.type === filterType)
-                  .map((schedule) => (
-                    <ScheduleItem
-                      key={schedule.id}
-                      schedule={schedule}
-                      onClick={(schedule) => {
-                        setSelectedSchedule(schedule);
-                        setIsModalOpen(true);
-                      }}
-                    />
+          {generateCalendarDays().map((day, index) => {
+            const today = new Date();
+            const isToday = 
+              today.getDate() === day.date && 
+              today.getMonth() === currentDate.getMonth() && 
+              today.getFullYear() === currentDate.getFullYear();
+
+            return (
+              <div 
+                key={index}
+                className={`min-h-[120px] p-2 border ${
+                  isToday 
+                    ? 'border-blue-300 border-[1.5px] bg-blue-50/50' 
+                    : 'border-gray-200'
+                }`}
+              >
+                <div className={`text-sm mb-1 ${
+                  isToday 
+                    ? 'font-semibold text-blue-500' 
+                    : ''
+                }`}>
+                  {day.date}
+                </div>
+                <div className="space-y-1">
+                  {day.salesPlans && day.salesPlans.map((plan) => (
+                    <div
+                      key={plan.id}
+                      className={`text-xs p-1 rounded ${getChannelColor(plan.channel_name)}`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span>{plan.plan_time.substring(0, 5)}</span>
+                        <span className="font-medium">{plan.channel_name}</span>
+                      </div>
+                      <div className="text-xs">{plan.set_name}</div>
+                    </div>
                   ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <ScheduleModal

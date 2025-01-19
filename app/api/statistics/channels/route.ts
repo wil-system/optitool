@@ -29,7 +29,8 @@ export async function GET(request: Request) {
           sales_channels!sales_plans_channel_id_fkey (
             id,
             channel_code,
-            channel_name
+            channel_name,
+            channel_details
           )
         )
       `)
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
     if (!data || data.length === 0) return NextResponse.json([]);
 
     // 날짜별로 데이터 그룹화
-    const groupedStats = data.reduce((acc: Record<string, Record<number, IChannelStatistics>>, curr: any) => {
+    const groupedStats = data.reduce((acc: Record<string, Record<string, IChannelStatistics>>, curr: any) => {
       const planDate = curr.sales_plans?.plan_date;
       const channel = curr.sales_plans?.sales_channels;
       
@@ -85,18 +86,20 @@ export async function GET(request: Request) {
         KST변환날짜: kstDate.toISOString(),
         그룹키: groupKey,
         표시날짜: originalDate,
-        채널: channel.channel_name
+        채널: channel.channel_name,
+        상세채널 : channel.channel_details
       });
 
       if (!acc[groupKey]) {
         acc[groupKey] = {};
       }
 
-      const channelId = channel.id;
+      const channelId = `${channel.id}-${channel.channel_details}`;
       if (!acc[groupKey][channelId]) {
         acc[groupKey][channelId] = {
           id: channelId.toString(),
           channel_name: channel.channel_name,
+          channel_detail: channel.channel_details,
           quantity: 0,
           amount: 0,
           target_quantity: 0,

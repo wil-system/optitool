@@ -1,6 +1,7 @@
 export interface IChannelStatistics {
   id: string; // 채널 ID
   channel_name: string; // 채널명
+  channel_detail: string; // 채널상세
   quantity: number; // 전체 판매수량
   amount: number; // 전체 판매금액
   target_quantity: number; // 전체 목표

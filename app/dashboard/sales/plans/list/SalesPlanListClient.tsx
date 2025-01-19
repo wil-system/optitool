@@ -291,7 +291,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
               </button>
               <button
                 onClick={() => setIsRegistrationModalOpen(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
               >
                 계획 추가
               </button>
@@ -331,7 +331,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel?.channel_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_detail}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.set_info?.set_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {plan.set_info?.set_id || '-'}
                     </td>

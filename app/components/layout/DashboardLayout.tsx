@@ -23,16 +23,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <span>상품 관리</span>
                 <ul className="ml-3 mt-1 space-y-1">
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <Link href="/dashboard/products/register">상품등록</Link>
+                    <Link href="/dashboard/products/list">단일상품</Link>
                   </li>
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <Link href="/dashboard/products/list">상품목록</Link>
+                    <Link href="/dashboard/sets/list">세트상품</Link>
                   </li>
                   <li className="px-2 py-1 hover:bg-gray-100">
-                    <Link href="/dashboard/sets/list">세트목록</Link>
-                  </li>
-                  <li className="px-2 py-1 hover:bg-gray-100">
-                    <Link href="/dashboard/products/categories">카테고리 설정</Link>
+                    <Link href="/dashboard/products/categories">카테고리</Link>
                   </li>
                 </ul>
               </div>

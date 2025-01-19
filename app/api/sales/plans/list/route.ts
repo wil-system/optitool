@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     if (setIds.length > 0) {
       const { data: setData } = await supabase
         .from('set_products')
-        .select('id, set_id')
+        .select('id, set_id , set_name')
         .in('id', setIds)
         .eq('is_active', true);
       setProducts = setData || [];

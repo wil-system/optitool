@@ -70,7 +70,7 @@ export interface ISalesPlans {
 }
 
 // 판매 채널 테이블
-interface ISalesChannels {
+export interface ISalesChannels {
   id: number;
   channel_code: string;
   channel_name: string;
@@ -82,15 +82,22 @@ interface ISalesChannels {
 }
 
 // 세트 상품 테이블
-interface ISetProducts {
-  id: number;
+export interface ISetProduct {
+  id: string;
   set_id: string;
   set_name: string;
-  individual_product_ids: string;
+  individual_product_ids: string[];
   remarks: string;
-  created_at: Date;
-  updated_at: Date;
-  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+  is_active?: boolean;
+}
+
+export interface ISetForm {
+  set_id: string;
+  set_name: string;
+  individual_product_ids: string[];
+  remarks: string;
 }
 
 // 상품 테이블
@@ -129,15 +136,6 @@ export interface IChannel {
 export interface ICategory {
   id: number;
   category_name: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ISetProduct {
-  id: number;
-  set_id: string;
-  set_name: string;
-  is_active: boolean;
   created_at: string;
   updated_at: string;
 } 

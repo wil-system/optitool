@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import { supabase } from '@/utils/supabase';
 import type { Product } from '@/types/product';
+import ProductRegistrationModal from '@/app/components/products/ProductRegistrationModal';
 
 export default function ProductListPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -19,6 +20,8 @@ export default function ProductListPage() {
     item_number: true,
     product_name: true
   });
+  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -68,8 +71,9 @@ export default function ProductListPage() {
     }
   };
 
-  const handleEdit = (productId: number) => {
-    setEditingId(productId);
+  const handleEdit = (product: Product) => {
+    setSelectedProduct(product);
+    setIsRegistrationModalOpen(true);
   };
 
   const handleUpdate = async (product: Product) => {
@@ -278,6 +282,16 @@ export default function ProductListPage() {
     );
   };
 
+  const handleCloseModal = () => {
+    setIsRegistrationModalOpen(false);
+    setSelectedProduct(null);
+  };
+
+  const handleRegistrationSuccess = () => {
+    fetchProducts();
+    handleCloseModal();
+  };
+
   return (
     <DashboardLayout>
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
@@ -340,6 +354,12 @@ export default function ProductListPage() {
                 className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 검색
+              </button>
+              <button
+                onClick={() => setIsRegistrationModalOpen(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                상품등록
               </button>
             </div>
           </div>
@@ -416,19 +436,21 @@ export default function ProductListPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right w-40">
                           {product.tag_price?.toLocaleString()}원
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center w-24">
-                          <button 
-                            onClick={() => handleEdit(product.id)}
-                            className="text-blue-600 hover:text-blue-900 mr-2"
-                          >
-                            수정
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(product.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            삭제
-                          </button>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                          <div className="flex justify-center space-x-2">
+                            <button
+                              onClick={() => handleEdit(product)}
+                              className="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600 transition-colors"
+                            >
+                              수정
+                            </button>
+                            <button
+                              onClick={() => handleDelete(product.id)}
+                              className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition-colors"
+                            >
+                              삭제
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -471,6 +493,14 @@ export default function ProductListPage() {
       </div>
       
       <DeleteConfirmPopup />
+
+      <ProductRegistrationModal
+        isOpen={isRegistrationModalOpen}
+        onClose={handleCloseModal}
+        onSuccess={handleRegistrationSuccess}
+        initialData={selectedProduct}
+        mode="edit"
+      />
     </DashboardLayout>
   );
 } 

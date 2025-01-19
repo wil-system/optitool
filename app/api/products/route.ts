@@ -93,7 +93,7 @@ export async function GET(request: Request) {
     let query = supabase
       .from('products')
       .select('*', { count: 'exact' })
-      .order('id', { ascending: true });
+      .order('updated_at', { ascending: false });
 
     // 검색 조건 추가
     if (searchTerm && searchFields.length > 0) {

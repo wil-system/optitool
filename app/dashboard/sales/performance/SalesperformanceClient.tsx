@@ -145,6 +145,21 @@ export default function SalesPlanListClient() {
     fetchData();
   }, []);
 
+  const getTotalSum = () => {
+    return formData.xs85 + formData.s90 + formData.m95 + formData.l100 + 
+           formData.xl105 + formData.xxl110 + formData.xxxl120;
+  };
+
+  useEffect(() => {
+    const totalSum = getTotalSum();
+    setFormData(prev => ({
+      ...prev,
+      performance: totalSum,
+      achievementRate: selectedPlan ? (totalSum / selectedPlan.target_quantity) * 100 : 0
+    }));
+  }, [formData.xs85, formData.s90, formData.m95, formData.l100, 
+      formData.xl105, formData.xxl110, formData.xxxl120, selectedPlan]);
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -296,11 +311,6 @@ export default function SalesPlanListClient() {
     }
   };
 
-  const getTotalSum = () => {
-    return formData.xs85 + formData.s90 + formData.m95 + formData.l100 + 
-           formData.xl105 + formData.xxl110 + formData.xxxl120;
-  };
-
   const formatNumber = (value: number) => {
     return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
@@ -436,10 +446,11 @@ export default function SalesPlanListClient() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase     tracking-wider"></th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">운영시즌</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">일자</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품코드</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">판매채널</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">채널상세</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">카테고리</th>
@@ -448,20 +459,11 @@ export default function SalesPlanListClient() {
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">판매가</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">수수료</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">목표</th>
-                  
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {currentItems.map((plan) => (
-                  <tr 
-                    key={plan.id} 
-                    onClick={() => handleRowClick(plan)} 
-                    className={`cursor-pointer relative ${
-                      selectedRowId === plan.id 
-                        ? 'bg-blue-50 hover:bg-blue-100' 
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
+                  <tr key={plan.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                       <button
                         onClick={(e) => handleRegisterClick(plan, e)}
@@ -471,31 +473,21 @@ export default function SalesPlanListClient() {
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.season}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{format(new Date(plan.plan_date), 'yyyy-MM-dd')}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {format(new Date(plan.plan_date), 'yyyy-MM-dd')}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.plan_time?.substring(0, 5)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_code}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_detail}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.set_info?.set_id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.set_info?.set_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.set_info?.set_id || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatPrice(plan.sale_price)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{plan.commission_rate}%</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{plan.target_quantity.toLocaleString()}개</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                      <button
-                        onClick={(e) => handleEditClick(e, plan)}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mr-2"
-                      >
-                        수정
-                      </button>
-                      <button
-                        onClick={(e) => handleDelete(e, plan.id)}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                      >
-                        삭제
-                      </button>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                      {plan.target_quantity.toLocaleString()}개
                     </td>
-                    
                   </tr>
                 ))}
               </tbody>
@@ -527,114 +519,106 @@ export default function SalesPlanListClient() {
       </div>
 
       {isModalOpen && (
-        <Modal 
-          isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)}
-          title="실적 입력"
-        >
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4 text-center">실적 입력</h2>
-            <div className="space-y-6 w-[800px]">
-              <div className="bg-blue-100 p-6 rounded-lg border-2 border-blue-200 shadow">
-                <h3 className="text-sm font-semibold text-blue-800 mb-4 text-center">기본 정보</h3>
-                <div className="grid grid-cols-3 gap-6">
-                  <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      실적 <span className="text-red-500">*</span>
-                      <span className="text-sm text-gray-500 ml-2">
-                        (목표: {selectedPlan ? formatNumber(selectedPlan.target_quantity) : '0'}개)
-                      </span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      className="block w-full rounded-md border-2 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-center"
-                      value={formData.performance ? formatNumber(formData.performance) : ''}
-                      onChange={(e) => {
-                        const value = parseFormattedNumber(e.target.value);
-                        if (!isNaN(value)) {
-                          setFormData({
-                            ...formData, 
-                            performance: value,
-                            achievementRate: selectedPlan ? (value / selectedPlan.target_quantity) * 100 : 0
-                          });
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
-                    <label className="block text-sm font-medium text-gray-700 mb-1 text-center">달성율 (%)</label>
-                    <input
-                      type="text"
-                      className="block w-full rounded-md border-2 border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed text-center"
-                      value={formData.achievementRate.toFixed(2)}
-                      disabled
-                    />
-                  </div>
-                  <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
-                    <label className="block text-sm font-medium text-gray-700 mb-1 text-center">당일온도 (C)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      className="block w-full rounded-md border-2 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-center"
-                      value={formData.temperature || ''}
-                      onChange={(e) => setFormData({...formData, temperature: Number(e.target.value)})}
-                    />
-                  </div>
-                </div>
-              </div>
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
 
-              <div className="bg-green-100 p-6 rounded-lg border-2 border-green-200 shadow">
-                <h3 className="text-sm font-semibold text-green-800 mb-4 text-center">사이즈별 수량</h3>
-                <div className="grid grid-cols-8 gap-4">
-                  {[
-                    { label: '85(XS)', key: 'xs85' },
-                    { label: '90(S)', key: 's90' },
-                    { label: '95(M)', key: 'm95' },
-                    { label: '100(L)', key: 'l100' },
-                    { label: '105(XL)', key: 'xl105' },
-                    { label: '110(XXL)', key: 'xxl110' },
-                    { label: '120(4XL)', key: 'xxxl120' }
-                  ].map(({ label, key }) => (
-                    <div key={key} className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
-                      <label className="block text-xs font-medium text-gray-700 mb-1 text-center">{label}</label>
-                      <input
-                        type="number"
-                        className="block w-full rounded-md border-2 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-center"
-                        value={formData[key as keyof FormData] || ''}
-                        onChange={(e) => setFormData({...formData, [key]: Number(e.target.value)})}
-                      />
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                    <h3 className="text-xl font-semibold mb-4 text-center">실적 입력</h3>
+                    <div className="space-y-6 w-full">
+                      <div className="bg-blue-100 p-6 rounded-lg border-2 border-blue-200 shadow">
+                        <h3 className="text-sm font-semibold text-blue-800 mb-4 text-center">기본 정보</h3>
+                        <div className="grid grid-cols-3 gap-6">
+                          <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              실적
+                              <span className="text-sm text-gray-500 ml-2">
+                                (목표: {selectedPlan ? formatNumber(selectedPlan.target_quantity) : '0'}개)
+                              </span>
+                            </label>
+                            <input
+                              type="text"
+                              className="block w-full rounded-md border-2 border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed text-center"
+                              value={formatNumber(formData.performance)}
+                              disabled
+                            />
+                          </div>
+                          <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
+                            <label className="block text-sm font-medium text-gray-700 mb-1 text-center">달성율 (%)</label>
+                            <input
+                              type="text"
+                              className="block w-full rounded-md border-2 border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed text-center"
+                              value={formData.achievementRate.toFixed(2)}
+                              disabled
+                            />
+                          </div>
+                          <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
+                            <label className="block text-sm font-medium text-gray-700 mb-1 text-center">당일온도 (C)</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="block w-full rounded-md border-2 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-center"
+                              value={formData.temperature || ''}
+                              onChange={(e) => setFormData({...formData, temperature: Number(e.target.value)})}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-green-100 p-6 rounded-lg border-2 border-green-200 shadow">
+                        <h3 className="text-sm font-semibold text-green-800 mb-4 text-center">사이즈별 수량</h3>
+                        <div className="grid grid-cols-7 gap-4">
+                          {[
+                            { label: '85(XS)', key: 'xs85' },
+                            { label: '90(S)', key: 's90' },
+                            { label: '95(M)', key: 'm95' },
+                            { label: '100(L)', key: 'l100' },
+                            { label: '105(XL)', key: 'xl105' },
+                            { label: '110(XXL)', key: 'xxl110' },
+                            { label: '120(4XL)', key: 'xxxl120' }
+                          ].map(({ label, key }) => (
+                            <div key={key} className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
+                              <label className="block text-xs font-medium text-gray-700 mb-1 text-center">{label}</label>
+                              <input
+                                type="number"
+                                className="block w-full rounded-md border-2 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-center"
+                                value={formData[key as keyof FormData] || ''}
+                                onChange={(e) => setFormData({...formData, [key]: Number(e.target.value)})}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                  <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
-                    <label className="block text-xs font-medium text-gray-700 mb-1 text-center">합계</label>
-                    <input
-                      type="text"
-                      className="block w-full rounded-md border-2 border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed text-center"
-                      value={formatNumber(getTotalSum())}
-                      disabled
-                    />
                   </div>
                 </div>
               </div>
-
-              <div className="flex justify-end space-x-3">
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border-2 border-gray-300 rounded-md hover:bg-gray-50 shadow"
-                >
-                  취소
-                </button>
-                <button
+                  type="button"
                   onClick={handleSubmit}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border-2 border-blue-600 rounded-md hover:bg-blue-700 hover:border-blue-700 shadow"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   등록
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  취소
                 </button>
               </div>
             </div>
           </div>
-        </Modal>
+        </div>
       )}
 
       {isEditModalOpen && selectedPlanData && (

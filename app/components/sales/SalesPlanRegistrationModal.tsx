@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '@/app/components/common/Modal';
 import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ISalesPlans } from '@/app/types/database';
@@ -206,10 +207,6 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
       alert('카테고리를 선택해주세요.');
       return false;
     }
-    if (!formData.product_name.trim()) {
-      alert('상품명을 입력해주세요.');
-      return false;
-    }
     if (!formData.set_id.trim()) {
       alert('세트품번을 입력해주세요.');
       return false;
@@ -297,83 +294,94 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="판매계획 등록">
-      <form onSubmit={handleSubmit} className="space-y-6 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">기본 정보</h3>
-            <div className="flex items-center space-x-2">
-              <div className="w-20">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  시즌연도
-                </label>
-                <input
-                  type="text"
-                  value={formData.season_year}
-                  onChange={handleSeasonYearChange}
-                  placeholder="YY"
-                  maxLength={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                />
-              </div>
-              <div className="w-24">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  시즌
-                </label>
-                <select
-                  value={formData.season_type}
-                  onChange={handleSeasonTypeChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                >
-                  <option value="SS">SS</option>
-                  <option value="FW">FW</option>
-                </select>
-              </div>
+      <form onSubmit={handleSubmit} className="p-4">
+        <div className="space-y-4">
+          {/* 시즌/날짜 정보 */}
+          <div className="flex space-x-4">
+            <div className="w-20">
+              <label className="block text-sm font-medium text-gray-700 mb-1">시즌연도</label>
+              <input
+                type="text"
+                value={formData.season_year}
+                onChange={handleSeasonYearChange}
+                placeholder="YY"
+                maxLength={2}
+                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                required
+              />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">날짜</label>
-                <DatePicker
-                  selected={selectedDate}
-                  onChange={(date) => setSelectedDate(date)}
-                  dateFormat="yyyy-MM-dd"
-                  minDate={today}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">시간</label>
-                <DatePicker
-                  selected={selectedTime}
-                  onChange={(time) => setSelectedTime(time)}
-                  showTimeSelect
-                  showTimeSelectOnly
-                  timeIntervals={30}
-                  timeCaption="Time"
-                  dateFormat="HH:mm"
-                  timeFormat="HH:mm"
-                  minTime={minTime}
-                  maxTime={new Date(new Date().setHours(23, 59, 59, 999))} 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
+            <div className="w-24">
+              <label className="block text-sm font-medium text-gray-700 mb-1">시즌</label>
+              <select
+                value={formData.season_type}
+                onChange={handleSeasonTypeChange}
+                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                required
+              >
+                <option value="SS">SS</option>
+                <option value="FW">FW</option>
+              </select>
             </div>
+            <div className="w-44">
+              <label className="block text-sm font-medium text-gray-700 mb-1">날짜</label>
+              <DatePicker
+                selected={selectedDate}
+                onChange={(date) => setSelectedDate(date)}
+                dateFormat="yyyy년 M월 d일"
+                locale={ko}
+                placeholderText="날짜 선택"
+                minDate={new Date()}
+                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                wrapperClassName="w-full"
+              />
+            </div>
+            <div className="w-32">
+              <label className="block text-sm font-medium text-gray-700 mb-1">시간</label>
+              <select
+                id="planTime"
+                value={selectedTime ? format(selectedTime, 'HH:mm') : ''}
+                onChange={(e) => setSelectedTime(e.target.value ? new Date(`2000-01-01T${e.target.value}`) : null)}
+                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+              >
+                <option value="">시간 선택</option>
+                {Array.from({ length: 144 }, (_, i) => {
+                  const hour = Math.floor(i / 6).toString().padStart(2, '0');
+                  const minute = (i % 6 * 10).toString().padStart(2, '0');
+                  const timeValue = `${hour}:${minute}`;
+                  const currentTime = new Date();
+                  const optionTime = new Date(currentTime.setHours(parseInt(hour), parseInt(minute)));
+                  
+                  if (isToday && optionTime <= new Date()) {
+                    return null;
+                  }
+
+                  return (
+                    <option key={timeValue} value={`${timeValue}`}>
+                      {timeValue}
+                    </option>
+                  );
+                }).filter(Boolean)}
+              </select>
+            </div>
+          </div>
+
+          {/* 상품 정보 */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">상품코드</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">상품코드</label>
               <input
                 type="text"
                 value={formData.product_code}
                 onChange={(e) => setFormData({...formData, product_code: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">세트품번</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">세트품번</label>
               <select
                 value={formData.set_id || ''}
                 onChange={(e) => setFormData({ ...formData, set_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
               >
                 <option value="">선택하세요</option>
                 {setIds.map((set) => (
@@ -383,12 +391,16 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* 채널 정보 */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">판매채널</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">판매채널</label>
               <select
                 onChange={(e) => handleChannelChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 value={selectedChannel?.id || ''}
+                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
               >
                 <option value="">선택하세요</option>
                 {channels.map((channel) => (
@@ -399,12 +411,12 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">채널상세</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">채널상세</label>
               <select
                 name="channel_detail"
                 value={formData.channel_detail}
                 onChange={(e) => setFormData({ ...formData, channel_detail: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
               >
                 <option value="">선택하세요</option>
                 {channelDetails.map((detail, index) => (
@@ -414,15 +426,19 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* 카테고리 및 추가 구성 */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">카테고리</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">카테고리</label>
               <select
                 onChange={(e) => {
                   const selected = categories.find(cat => cat.id === Number(e.target.value));
                   setSelectedCategory(selected || null);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 value={selectedCategory?.id || ''}
+                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
               >
                 <option value="">선택하세요</option>
                 {categories.map((category) => (
@@ -432,79 +448,56 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
                 ))}
               </select>
             </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">상품 정보</h3>
             <div>
-              <label className="block text-sm font-medium text-gray-700">상품명</label>
-              <input
-                type="text"
-                value={formData.product_name}
-                onChange={(e) => setFormData({...formData, product_name: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">요약 상품명</label>
-              <input
-                type="text"
-                value={formData.product_summary}
-                onChange={(e) => setFormData({...formData, product_summary: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">추가 구성</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">추가 구성</label>
               <input
                 type="text"
                 value={formData.quantity_composition}
                 onChange={(e) => setFormData({...formData, quantity_composition: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
               />
             </div>
+          </div>
+
+          {/* 판매 정보 */}
+          <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">판매가</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">판매가</label>
               <input
                 type="text"
                 value={focusedField === 'price' ? formData.sale_price : formatPrice(formData.sale_price, false)}
                 onChange={handleSalePriceChange}
                 onFocus={() => setFocusedField('price')}
                 onBlur={() => setFocusedField(null)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="판매가"
+                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">수수료율</label>
-                <input
-                  type="text"
-                  value={focusedField === 'commission' ? formData.commission_rate : formatCommissionRate(formData.commission_rate, false)}
-                  onChange={handleCommissionRateChange}
-                  onFocus={() => setFocusedField('commission')}
-                  onBlur={() => setFocusedField(null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="수수료율"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">목표수량</label>
-                <input
-                  type="text"
-                  value={focusedField === 'target' ? formData.target_quantity : formatTarget(formData.target_quantity, false)}
-                  onChange={handleTargetChange}
-                  onFocus={() => setFocusedField('target')}
-                  onBlur={() => setFocusedField(null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="목표수량"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">수수료율</label>
+              <input
+                type="text"
+                value={focusedField === 'commission' ? formData.commission_rate : formatCommissionRate(formData.commission_rate, false)}
+                onChange={handleCommissionRateChange}
+                onFocus={() => setFocusedField('commission')}
+                onBlur={() => setFocusedField(null)}
+                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">목표수량</label>
+              <input
+                type="text"
+                value={focusedField === 'target' ? formData.target_quantity : formatTarget(formData.target_quantity, false)}
+                onChange={handleTargetChange}
+                onFocus={() => setFocusedField('target')}
+                onBlur={() => setFocusedField(null)}
+                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+              />
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end space-x-3 pt-4 border-t">
+        <div className="flex justify-end space-x-3 mt-6">
           <button
             type="button"
             onClick={onClose}

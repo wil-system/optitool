@@ -97,4 +97,59 @@ export async function DELETE(request: Request) {
       { status: 500 }
     );
   }
+}
+
+export async function POST(request: Request) {
+  try {
+    const channel = await request.json();
+
+    // 필수 필드 검증
+    if (!channel.channel_code || !channel.channel_name || !channel.channel_details) {
+      return NextResponse.json(
+        { error: '필수 정보가 누락되었습니다.' },
+        { status: 400 }
+      );
+    }
+
+    // PostgreSQL 배열 형식으로 변환
+    const channelDetailsArray = channel.channel_details
+      .split(',')
+      .map((detail: string) => detail.trim())
+      .filter(Boolean);
+    
+    const formattedChannelDetails = `{${channelDetailsArray.map((detail: string) => `"${detail}"`).join(',')}}`;
+
+    const { data, error } = await supabase
+      .from('sales_channels')
+      .insert([{
+        channel_code: channel.channel_code,
+        channel_name: channel.channel_name,
+        channel_details: formattedChannelDetails,
+        remarks: channel.remarks || '',
+        is_active: true
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') { // 중복 키 에러
+        return NextResponse.json(
+          { error: '이미 존재하는 채널 코드입니다.' },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
+
+    return NextResponse.json({ 
+      message: '채널이 성공적으로 등록되었습니다.',
+      data 
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    return NextResponse.json(
+      { error: '채널 등록 중 오류가 발생했습니다.' },
+      { status: 500 }
+    );
+  }
 } 

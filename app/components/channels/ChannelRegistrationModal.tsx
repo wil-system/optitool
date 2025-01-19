@@ -1,12 +1,14 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '@/app/components/common/Modal';
-import { supabase } from '@/utils/supabase';
+import type { ISalesChannels } from '@/app/types/database';
 
-interface Props {
+interface IProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  initialData?: ISalesChannels | null;
+  mode: 'create' | 'edit';
 }
 
 interface ChannelDetailInput {
@@ -14,16 +16,59 @@ interface ChannelDetailInput {
   value: string;
 }
 
-export default function ChannelRegistrationModal({ isOpen, onClose, onSuccess }: Props) {
-  const [formData, setFormData] = useState({
-    channel_code: '',
-    channel_name: '',
-    remarks: ''
+export default function ChannelRegistrationModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  initialData = null,
+  mode = 'create'
+}: IProps) {
+  // 디버깅을 위한 로그 추가
+  console.log('initialData:', initialData);
+
+  const [formData, setFormData] = useState<ISalesChannels>(() => ({
+    id: initialData?.id || 0,
+    channel_code: initialData?.channel_code || '',
+    channel_name: initialData?.channel_name || '',
+    channel_details: initialData?.channel_details || '',
+    remarks: initialData?.remarks || '',
+    created_at: initialData?.created_at || new Date(),
+    updated_at: initialData?.updated_at || new Date(),
+    is_active: initialData?.is_active ?? true
+  }));
+
+  const [channelDetails, setChannelDetails] = useState<ChannelDetailInput[]>(() => {
+    if (initialData?.channel_details && typeof initialData.channel_details === 'string') {
+      console.log('Initial channel_details:', initialData.channel_details);
+      const details = initialData.channel_details.split(',').filter(Boolean);
+      return details.map((detail, index) => ({
+        id: String(index + 1),
+        value: detail.trim()
+      }));
+    }
+    return [{ id: '1', value: '' }];
   });
 
-  const [channelDetails, setChannelDetails] = useState<ChannelDetailInput[]>([
-    { id: '1', value: '' }
-  ]);
+  useEffect(() => {
+    console.log('useEffect triggered with initialData:', initialData);
+    if (initialData) {
+      setFormData({
+        ...initialData,
+        channel_details: initialData.channel_details || ''
+      });
+      
+      if (typeof initialData.channel_details === 'string' && initialData.channel_details.length > 0) {
+        console.log('Processing channel_details:', initialData.channel_details);
+        const details = initialData.channel_details.split(',').filter(Boolean);
+        setChannelDetails(
+          details.map((detail, index) => ({
+            id: String(index + 1),
+            value: detail.trim()
+          }))
+        );
+      }
+    }
+  }, [initialData]);
 
   const handleDetailChange = (id: string, value: string) => {
     setChannelDetails(prev =>
@@ -48,51 +93,57 @@ export default function ChannelRegistrationModal({ isOpen, onClose, onSuccess }:
     e.preventDefault();
     
     try {
-      const { data: existingChannel } = await supabase
-        .from('sales_channels')
-        .select('channel_code')
-        .eq('channel_code', formData.channel_code)
-        .single();
+      const channelDetailsArray = channelDetails
+        .map(detail => detail.value.trim())
+        .filter(Boolean);
 
-      if (existingChannel) {
-        alert('이미 존재하는 채널코드입니다.');
+      if (channelDetailsArray.length === 0) {
+        alert('채널상세는 최소 1개 이상 입력해야 합니다.');
         return;
       }
 
-      const channel_details = channelDetails
-        .map(detail => detail.value)
-        .filter(value => value.length > 0);
+      const updatedFormData = {
+        ...formData,
+        channel_details: channelDetailsArray.join(',')
+      };
 
-      if (channel_details.length === 0) {
-        alert('채널상세를 최소 1개 이상 입력해주세요.');
-        return;
+      const url = mode === 'edit' 
+        ? `/api/channels/${updatedFormData.channel_code}`
+        : '/api/channels';
+
+      const response = await fetch(url, {
+        method: mode === 'edit' ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedFormData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '처리 중 오류가 발생했습니다.');
       }
 
-      const { error } = await supabase
-        .from('sales_channels')
-        .insert([{
-          channel_code: formData.channel_code,
-          channel_name: formData.channel_name,
-          channel_details,
-          remarks: formData.remarks
-        }]);
-
-      if (error) throw error;
-
-      alert('판매채널이 성공적으로 등록되었습니다.');
+      alert(data.message || (mode === 'edit' ? '수정되었습니다.' : '등록되었습니다.'));
       onSuccess();
-      resetForm();
+      onClose();
     } catch (error) {
-      console.error('Error inserting sales channel:', error);
-      alert('판매채널 등록 중 오류가 발생했습니다.');
+      console.error('Error:', error);
+      alert(error instanceof Error ? error.message : '처리 중 오류가 발생했습니다.');
     }
   };
 
   const resetForm = () => {
     setFormData({
+      id: 0,
       channel_code: '',
       channel_name: '',
-      remarks: ''
+      channel_details: '',
+      remarks: '',
+      created_at: new Date(),
+      updated_at: new Date(),
+      is_active: true
     });
     setChannelDetails([{ id: '1', value: '' }]);
   };

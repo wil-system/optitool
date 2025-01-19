@@ -10,6 +10,7 @@ interface Props {
 
 interface SalesPerformance {
   set_id: any;
+  set_name: any;
   product_name: any;
   product_category: any;
   channel_detail: any;
@@ -25,6 +26,8 @@ interface SalesPerformance {
   plan_date: string | null;
   plan_time: string | null;
   target_quantity: number;
+  product_code: string;
+  sale_price: number;
 }
 
 type SearchFilterKey = 'season' | 'channel' | 'channelDetail' | 'category' | 'productName' | 'setId';
@@ -167,6 +170,10 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
     } catch (error) {
       return timeString;
     }
+  };
+
+  const formatPrice = (price: number): string => {
+    return price.toLocaleString('ko-KR');
   };
 
   const handleDelete = async (id: number) => {
@@ -316,10 +323,12 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">채널상세</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">카테고리</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품명</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품코드</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">세트품번</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">목표</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">실적</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">달성률</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">판매금액</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"> </th>
                 </tr>
               </thead>
@@ -337,10 +346,12 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.channel_detail}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.product_category}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.product_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.set_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.set_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(item.target_quantity)}개</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(item.performance)}개</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{item.achievement_rate}%</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatPrice(item.sale_price * item.performance)}원</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                       <button
                         onClick={(e) => handleDeleteClick(e, item)}
@@ -525,7 +536,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
             <h3 className="text-lg font-medium text-gray-900 mb-4">삭제 확인</h3>
             <p className="text-sm text-gray-500 mb-4">
               정말로 이 판매실적을 삭제하시겠습니까?<br />
-              상품명: {performanceToDelete.product_name}<br />
+              상품명: {performanceToDelete.set_name}<br />
               세트품번: {performanceToDelete.set_id}
             </p>
             <div className="flex justify-end space-x-3">

@@ -3,24 +3,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import useSWR from 'swr';
 import SetRegistrationModal from '@/app/components/sets/SetRegistrationModal';
-
-interface SetProduct {
-  id: string;
-  set_id: string;
-  set_name: string;
-  individual_product_ids: string[];
-  remarks: string;
-  created_at: string;
-}
+import type { ISetProduct } from '@/app/types/database';
 
 interface EditableRowProps {
-  set: SetProduct;
+  set: ISetProduct;
   onCancel: () => void;
-  onSave: (updatedSet: SetProduct) => Promise<void>;
+  onSave: (updatedSet: ISetProduct) => Promise<void>;
 }
 
 const EditableRow = ({ set, onCancel, onSave }: EditableRowProps) => {
-  const [editedSet, setEditedSet] = useState<SetProduct>({ ...set });
+  const [editedSet, setEditedSet] = useState<ISetProduct>({ ...set });
   const [productIds, setProductIds] = useState(set.individual_product_ids.join(', '));
 
   const handleSave = async () => {
@@ -85,7 +77,7 @@ const EditableRow = ({ set, onCancel, onSave }: EditableRowProps) => {
 };
 
 export default function SetListPage() {
-  const [sets, setSets] = useState<SetProduct[]>([]);
+  const [sets, setSets] = useState<ISetProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -98,6 +90,8 @@ export default function SetListPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const PAGE_SIZE = 100;
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
+  const [selectedSet, setSelectedSet] = useState<ISetProduct | null>(null);
+  const [viewSet, setViewSet] = useState<ISetProduct | null>(null);
 
   const fetchSets = useCallback(async () => {
     try {
@@ -131,8 +125,10 @@ export default function SetListPage() {
   }, [currentPage, searchTerm, searchFields]);
 
   useEffect(() => {
-    fetchSets();
-  }, [fetchSets]);
+    if (searchTerm === '') {
+      fetchSets();
+    }
+  }, [fetchSets, currentPage]);
 
   const handleSearch = () => {
     setCurrentPage(0);
@@ -221,11 +217,12 @@ export default function SetListPage() {
     }));
   };
 
-  const handleEdit = (set: SetProduct) => {
-    setEditingId(set.id);
+  const handleEdit = (set: ISetProduct) => {
+    setSelectedSet(set);
+    setIsRegistrationModalOpen(true);
   };
 
-  const handleSave = async (updatedSet: SetProduct) => {
+  const handleSave = async (updatedSet: ISetProduct) => {
     try {
       const response = await fetch(`/api/sets/${updatedSet.id}`, {
         method: 'PUT',
@@ -248,9 +245,20 @@ export default function SetListPage() {
     }
   };
 
-  const handleCloseRegistrationModal = () => {
+  const handleCloseModal = () => {
     setIsRegistrationModalOpen(false);
+    setSelectedSet(null);
+    setViewSet(null);
+  };
+
+  const handleRegistrationSuccess = () => {
     fetchSets();
+    handleCloseModal();
+  };
+
+  const handleRowClick = (set: ISetProduct) => {
+    setViewSet(set);
+    setIsRegistrationModalOpen(true);
   };
 
   if (isLoading) return <div>로딩 중...</div>;
@@ -264,12 +272,6 @@ export default function SetListPage() {
               세트목록
             </h3>
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => setIsRegistrationModalOpen(true)}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-              >
-                세트등록
-              </button>
               <div className="flex items-center gap-2">
                 <label className="inline-flex items-center">
                   <input
@@ -297,7 +299,7 @@ export default function SetListPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="검색어를 입력하세요"
                   className="pl-10 pr-4 py-2 border rounded-lg w-80"
-                  onKeyPress={(e) => {
+                  onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       handleSearch();
                     }
@@ -311,79 +313,91 @@ export default function SetListPage() {
               </div>
               <button
                 onClick={handleSearch}
-                className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 검색
+              </button>
+              <button
+                onClick={() => setIsRegistrationModalOpen(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                세트등록
               </button>
             </div>
           </div>
 
           {/* 테블 */}
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  세트번호
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  세트명
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  개별품번
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  비고
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                  관리
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {sets.map((set) => (
-                editingId === set.id ? (
-                  <EditableRow
-                    key={`edit-${set.id}`}
-                    set={set}
-                    onCancel={() => setEditingId(null)}
-                    onSave={handleSave}
-                  />
-                ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                    세트번호
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
+                    세트명
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-96">
+                    개별 품번
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
+                    비고
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                    관리
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sets.map((set) => (
                   <tr 
                     key={set.id}
-                    className="hover:bg-gray-50"
+                    onClick={() => handleRowClick(set)}
+                    className="cursor-pointer transition-colors duration-150 hover:bg-blue-50"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 hover:text-blue-600">
                       {set.set_id}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 hover:text-blue-600">
                       {set.set_name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {set.individual_product_ids.join(', ')}
+                    <td className="px-6 py-4 text-sm text-gray-900 hover:text-blue-600">
+                      <div className="break-words whitespace-pre-wrap">
+                        {set.individual_product_ids.join(', ')}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {set.remarks}
+                    <td className="px-6 py-4 text-sm text-gray-900 hover:text-blue-600">
+                      <div className="break-words whitespace-pre-wrap">
+                        {set.remarks}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                      <button 
-                        onClick={() => handleEdit(set)}
-                        className="text-blue-600 hover:text-blue-900 mr-2"
-                      >
-                        수정
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(set.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        삭제
-                      </button>
+                      <div className="flex justify-center space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(set);
+                          }}
+                          className="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600 transition-colors"
+                        >
+                          수정
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(set.id);
+                          }}
+                          className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition-colors"
+                        >
+                          삭제
+                        </button>
+                      </div>
                     </td>
                   </tr>
-                )
-              ))}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           {/* 페이지네이션 */}
           <div className="mt-4 flex justify-center">
@@ -409,10 +423,39 @@ export default function SetListPage() {
       <DeleteConfirmPopup />
 
       {/* 세트등록 모달 */}
-      {isRegistrationModalOpen && (
+      {(isRegistrationModalOpen && !selectedSet && !viewSet) && (
         <SetRegistrationModal
           isOpen={isRegistrationModalOpen}
-          onClose={handleCloseRegistrationModal}
+          onClose={() => setIsRegistrationModalOpen(false)}
+          onSuccess={() => {
+            fetchSets();
+            setIsRegistrationModalOpen(false);
+          }}
+          mode="create"
+        />
+      )}
+
+      {/* 수정 모달 */}
+      {selectedSet && (
+        <SetRegistrationModal
+          isOpen={isRegistrationModalOpen}
+          onClose={handleCloseModal}
+          onSuccess={handleRegistrationSuccess}
+          initialData={selectedSet}
+          mode="edit"
+        />
+      )}
+
+      {/* 보기 모달 */}
+      {viewSet && !selectedSet && (
+        <SetRegistrationModal
+          isOpen={isRegistrationModalOpen}
+          onClose={() => {
+            setIsRegistrationModalOpen(false);
+            setViewSet(null);
+          }}
+          initialData={viewSet}
+          mode="view"
         />
       )}
     </DashboardLayout>
