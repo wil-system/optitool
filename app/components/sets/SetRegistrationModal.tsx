@@ -326,7 +326,7 @@ export default function SetRegistrationModal({
               />
             </div>
             <div className="p-3 border-2 border-gray-200 rounded-lg bg-white">
-              <label className="block text-sm font-medium text-gray-700 mb-1">세트명</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">상품명</label>
               <input
                 type="text"
                 value={formData.set_name}

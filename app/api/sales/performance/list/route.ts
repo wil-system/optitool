@@ -87,6 +87,7 @@ export async function GET(request: Request) {
         channel_detail: item.sales_plans?.channel_detail || '',
         product_category: item.sales_plans?.product_category || '',
         product_name: item.sales_plans?.product_name || '',
+        product_code: item.sales_plans?.product_code || '',
         set_id: setProduct?.set_id || '',
         set_name: setProduct?.set_name || '',
         target_quantity: Number(item.sales_plans?.target_quantity) || 0,

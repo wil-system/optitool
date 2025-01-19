@@ -294,7 +294,7 @@ export default function SetListPage() {
                     onChange={() => handleSearchFieldChange('set_name')}
                     className="form-checkbox h-4 w-4 text-blue-600"
                   />
-                  <span className="ml-2">세트명</span>
+                  <span className="ml-2">상품명</span>
                 </label>
               </div>
               <div className="relative">
@@ -340,7 +340,7 @@ export default function SetListPage() {
                     세트번호
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
-                    세트명
+                    상품명
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-96">
                     개별 품번

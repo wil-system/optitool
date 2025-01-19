@@ -317,11 +317,11 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">운영시즌</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">일자</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품코드</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">판매채널</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">채널상세</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">카테고리</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품명</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품코드</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">세트품번</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">목표</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">실적</th>
@@ -335,20 +335,20 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                   <tr 
                     key={item.id} 
                     onClick={() => handleRowClick(item)}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className="hover:bg-blue-50/50 cursor-pointer transition-colors duration-150 ease-in-out group"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.season}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(item.plan_date)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatTime(item.plan_time)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.channel_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.channel_detail}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.product_category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.product_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.set_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(item.target_quantity)}개</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatNumber(item.performance)}개</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{item.achievement_rate}%</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatPrice(item.sale_price * item.performance)}원</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.season}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{formatDate(item.plan_date)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{formatTime(item.plan_time)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.product_code}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.channel_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.channel_detail}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.product_category}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.set_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right group-hover:text-blue-600">{formatNumber(item.target_quantity)}개</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right group-hover:text-blue-600">{formatNumber(item.performance)}개</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right group-hover:text-blue-600">{item.achievement_rate}%</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right group-hover:text-blue-600">{formatPrice(item.sale_price * item.performance)}원</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                       <button
                         onClick={(e) => handleDeleteClick(e, item)}
@@ -417,40 +417,44 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                 {/* 상품명 */}
                 <div className="col-span-2 bg-blue-50 p-4 rounded-lg">
                   <h3 className="text-sm font-semibold text-gray-600 mb-2">상품명</h3>
-                  <p className="text-xl font-bold text-blue-800">{selectedPerformance.product_name}</p>
+                  <p className="text-xl font-bold text-blue-800">{selectedPerformance.set_name}</p>
                 </div>
 
                 {/* 기본 정보 */}
                 <div className="col-span-2 bg-gray-50 p-4 rounded-lg">
                   <h3 className="text-sm font-semibold text-gray-800 mb-3">기본 정보</h3>
-                  <div className="grid grid-cols-4 gap-4 text-sm">
-                    <div className="space-y-1">
-                      <p className="text-gray-600">일자</p>
-                      <p className="font-medium">{formatDate(selectedPerformance.plan_date)}</p>
+                  <div className="grid grid-cols-4 gap-4 text-sm p-4 bg-blue-50/50 rounded-lg border border-blue-100">
+                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100  transition-all">
+                      <p className="text-blue-600 font-semibold">일자</p>
+                      <p className="font-medium text-gray-800">{formatDate(selectedPerformance.plan_date)}</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-gray-600">시간</p>
-                      <p className="font-medium">{formatTime(selectedPerformance.plan_time)}</p>
+                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100 transition-all">
+                      <p className="text-blue-600 font-semibold">시간</p>
+                      <p className="font-medium text-gray-800">{formatTime(selectedPerformance.plan_time)}</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-gray-600">온도</p>
-                      <p className="font-medium">{selectedPerformance.temperature}°C</p>
+                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100 h transition-all">
+                      <p className="text-blue-600 font-semibold">온도</p>
+                      <p className="font-medium text-gray-800">{selectedPerformance.temperature}°C</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-gray-600">카테고리</p>
-                      <p className="font-medium">{selectedPerformance.product_category}</p>
+                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100  transition-all">
+                      <p className="text-blue-600 font-semibold">카테고리</p>
+                      <p className="font-medium text-gray-800">{selectedPerformance.product_category}</p>
                     </div>
-                    <div className="col-span-2 space-y-1">
-                      <p className="text-gray-600">판매채널</p>
-                      <p className="font-medium">{selectedPerformance.channel_name}</p>
+                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100  transition-all">
+                      <p className="text-blue-600 font-semibold">상품코드</p>
+                      <p className="font-medium text-gray-800">{selectedPerformance.product_code}</p>
                     </div>
-                    <div className="col-span-2 space-y-1">
-                      <p className="text-gray-600">채널상세</p>
-                      <p className="font-medium">{selectedPerformance.channel_detail}</p>
+                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100  transition-all">
+                      <p className="text-blue-600 font-semibold">판매채널</p>
+                      <p className="font-medium text-gray-800">{selectedPerformance.channel_name}</p>
                     </div>
-                    <div className="col-span-4 space-y-1">
-                      <p className="text-gray-600">세트품번</p>
-                      <p className="font-medium">{selectedPerformance.set_id}</p>
+                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100  transition-all">
+                      <p className="text-blue-600 font-semibold">채널상세</p>
+                      <p className="font-medium text-gray-800">{selectedPerformance.channel_detail}</p>
+                    </div>
+                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100  transition-all">
+                      <p className="text-blue-600 font-semibold">세트품번</p>
+                      <p className="font-medium text-gray-800">{selectedPerformance.set_id}</p>
                     </div>
                   </div>
                 </div>
@@ -460,54 +464,63 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                   <h3 className="text-sm font-semibold text-gray-800 mb-3">실적 정보</h3>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="bg-white p-4 rounded-lg text-center">
-                      <p className="text-sm text-gray-600 mb-1">목표</p>
+                      <p className="text-blue-600 font-semibold">목표</p>
                       <p className="text-lg font-bold">{formatNumber(selectedPerformance.target_quantity)}개</p>
                     </div>
                     <div className="bg-white p-4 rounded-lg text-center">
-                      <p className="text-sm text-gray-600 mb-1">실적</p>
-                      <p className="text-lg font-bold text-blue-600">{formatNumber(selectedPerformance.performance)}개</p>
+                      <p className="text-blue-600 font-semibold">실적</p>
+                      <p className="text-lg font-bold ">{formatNumber(selectedPerformance.performance)}개</p>
                     </div>
                     <div className="bg-white p-4 rounded-lg text-center">
-                      <p className="text-sm text-gray-600 mb-1">달성률</p>
-                      <p className="text-lg font-bold text-green-600">{selectedPerformance.achievement_rate}%</p>
+                      <p className="text-blue-600 font-semibold">달성률</p>
+                      <p className="text-lg font-bold ">{selectedPerformance.achievement_rate}%</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* 사이즈별 정보 */}
-              <div className="col-span-4 bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-sm font-semibold text-gray-800 mb-3">사이즈별 정보</h3>
+              <div className="col-span-4 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+                <h3 className="text-sm font-semibold text-blue-600 mb-3">사이즈별 정보</h3>
                 <div className="space-y-2">
-                  {[
-                    { label: 'XS(85)', key: 'xs85' },
-                    { label: 'S(90)', key: 's90' },
-                    { label: 'M(95)', key: 'm95' },
-                    { label: 'L(100)', key: 'l100' },
-                    { label: 'XL(105)', key: 'xl105' },
-                    { label: 'XXL(110)', key: 'xxl110' },
-                    { label: 'XXXL(120)', key: 'xxxl120' }
-                  ].map(size => {
-                    const sizeKey = size.key as keyof SalesPerformance;
+                  {(() => {
+                    // 모든 사이즈의 값을 미리 계산하여 최대값 찾기
+                    const sizeValues = [
+                      { label: 'XS(85)', key: 'xs85' },
+                      { label: 'S(90)', key: 's90' },
+                      { label: 'M(95)', key: 'm95' },
+                      { label: 'L(100)', key: 'l100' },
+                      { label: 'XL(105)', key: 'xl105' },
+                      { label: 'XXL(110)', key: 'xxl110' },
+                      { label: 'XXXL(120)', key: 'xxxl120' }
+                    ].map(size => ({
+                      ...size,
+                      value: Number(selectedPerformance[size.key as keyof SalesPerformance]) || 0
+                    }));
+
+                    const maxValue = Math.max(...sizeValues.map(size => size.value));
                     const total = calculateSizeTotal(selectedPerformance);
-                    const value = Number(selectedPerformance[sizeKey]) || 0;
-                    const percent = calculateSizePercent(value, total);
-                    return (
-                      <div key={size.label} className="flex items-center bg-white p-2.5 rounded-md text-sm">
-                        <span className="w-20 font-medium text-gray-700">{size.label}</span>
-                        <div className="flex-1 mx-3 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-500 rounded-full"
-                            style={{ width: `${percent}%` }}
-                          ></div>
+
+                    return sizeValues.map(size => {
+                      const percent = calculateSizePercent(size.value, total);
+
+                      return (
+                        <div key={size.label} className="flex items-center bg-white p-2.5 rounded-md text-sm shadow-sm border border-blue-100">
+                          <span className="w-20 font-medium text-gray-700">{size.label}</span>
+                          <div className="flex-1 mx-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full ${size.value === maxValue && size.value !== 0 ? 'bg-red-500' : 'bg-blue-500'}`}
+                              style={{ width: `${percent}%` }}
+                            ></div>
+                          </div>
+                          <span className={`w-28 text-right text-sm font-medium ${size.value === maxValue && size.value !== 0 ? 'text-red-600' : 'text-gray-700'}`}>
+                            {formatNumber(size.value)}개 <span className="text-gray-500">({percent}%)</span>
+                          </span>
                         </div>
-                        <span className="w-28 text-right text-sm font-medium">
-                          {formatNumber(value)}개 <span className="text-gray-500">({percent}%)</span>
-                        </span>
-                      </div>
-                    );
-                  })}
-                  <div className="border-t border-gray-200 mt-3 pt-3">
+                      );
+                    });
+                  })()}
+                  <div className="border-t border-blue-200 mt-3 pt-3">
                     <div className="flex justify-between items-center">
                       <span className="font-medium text-gray-700">총 합계</span>
                       <span className="text-lg font-bold text-blue-600">{formatNumber(calculateSizeTotal(selectedPerformance))}개</span>
