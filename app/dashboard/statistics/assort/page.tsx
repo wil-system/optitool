@@ -51,7 +51,11 @@ export default function AssortStatisticsPage() {
       
       // Object.entries를 사용하여 날짜 기준 내림차순 정렬
       const sortedData = Object.fromEntries(
-        Object.entries(data).sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
+        Object.entries(data as Record<string, IAssortStatistics[]>).sort(([dateA], [dateB]) => {
+          const timeA = new Date(dateA).getTime();
+          const timeB = new Date(dateB).getTime();
+          return timeB - timeA;
+        })
       ) as GroupedStatistics;
       
       setStatistics(sortedData);
@@ -232,22 +236,92 @@ export default function AssortStatisticsPage() {
     }));
   };
 
-  const formatDateRange = (date: string, period: string, startDate: Date | null, endDate: Date | null) => {
-    if (period === 'custom' && startDate && endDate) {
-      return `${format(startDate, 'yyyy년 MM월 dd일')} ~ ${format(endDate, 'yyyy년 MM월 dd일')}`;
-    }
-
-    switch (period) {
-      case 'yearly':
-        return `${date}년`;
-      case 'monthly': {
-        const [year, month] = date.split('-');
-        return `${year}년 ${month}월`;
+  const formatDateRange = (date: string) => {
+    if (!date) return '';
+    
+    try {
+      switch (period) {
+        case 'yearly':
+          return `${date}년`;
+        case 'monthly': {
+          const [year, month] = date.split('-');
+          return `${year}년 ${parseInt(month)}월`;
+        }
+        case 'daily': {
+          const parsedDate = new Date(date);
+          if (isNaN(parsedDate.getTime())) {
+            console.error('Invalid date:', date);
+            return date;
+          }
+          return parsedDate.toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+        }
+        case 'custom': {
+          if (startDate && endDate) {
+            return `${format(startDate, 'yyyy년 MM월 dd일')} ~ ${format(endDate, 'yyyy년 MM월 dd일')}`;
+          }
+          const parsedDate = new Date(date);
+          if (isNaN(parsedDate.getTime())) {
+            console.error('Invalid date:', date);
+            return date;
+          }
+          return parsedDate.toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+        }
+        default:
+          return date;
       }
-      case 'daily':
-        return format(new Date(date), 'yyyy년 MM월 dd일');
-      default:
-        return date;
+    } catch (error) {
+      console.error('Date formatting error:', error, date);
+      return date;
+    }
+  };
+
+  const handlePeriodChange = async (newPeriod: 'daily' | 'monthly' | 'yearly' | 'custom') => {
+    setIsLoading(true);
+    setStatistics({}); // 기존 데이터 초기화
+    setPeriod(newPeriod);
+    
+    if (newPeriod === 'custom') {
+      setStartDate(null);
+      setEndDate(null);
+      setIsLoading(false);
+    } else {
+      try {
+        const params = new URLSearchParams({
+          period: newPeriod
+        });
+
+        const response = await fetch(`/api/statistics/assort?${params}`);
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || '데이터 조회 실패');
+        }
+        
+        // 날짜 기준 내림차순 정렬
+        const sortedData = Object.fromEntries(
+          Object.entries(data as Record<string, IAssortStatistics[]>).sort(([dateA], [dateB]) => {
+            const timeA = new Date(dateA).getTime();
+            const timeB = new Date(dateB).getTime();
+            return timeB - timeA;
+          })
+        );
+
+        console.log('정렬된 데이터:', sortedData); // 데이터 확인용
+        setStatistics(sortedData);
+      } catch (error) {
+        console.error('통계 조회 중 오류:', error);
+        alert('데이터 조회 중 오류가 발생했습니다.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -257,7 +331,7 @@ export default function AssortStatisticsPage() {
         <h1 className="text-2xl font-bold mb-6">아소트 통계</h1>
         
         <div className="flex items-center space-x-4 mb-6">
-          <PeriodSelector period={period} onPeriodChange={setPeriod} />
+          <PeriodSelector period={period} onPeriodChange={handlePeriodChange} />
           {period === 'custom' && (
             <>
               <DateRangePicker
@@ -269,19 +343,20 @@ export default function AssortStatisticsPage() {
               <button
                 onClick={handleSearch}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                disabled={isLoading}
               >
-                검색
+                {isLoading ? '검색 중...' : '검색'}
               </button>
             </>
           )}
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center items-center h-64">
+          <div className="flex justify-center items-center min-h-[400px]">
             <LoadingSpinner />
           </div>
         ) : Object.keys(statistics).length === 0 ? (
-          <div className="text-center py-10">
+          <div className="flex justify-center items-center min-h-[400px]">
             <p className="text-gray-500">표시할 데이터가 없습니다.</p>
           </div>
         ) : (
@@ -290,11 +365,12 @@ export default function AssortStatisticsPage() {
               <div key={date} className="mb-8 bg-white rounded-lg shadow-md">
                 <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-lg">
                   <h2 className="text-2xl font-semibold text-gray-900">
-                    {formatDateRange(date, period, startDate, endDate)}
+                    {formatDateRange(date)}
                   </h2>
                   <button
                     onClick={() => toggleChart(date)}
                     className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-medium"
+                    disabled={isLoading}
                   >
                     {chartViews[date] ? '테이블 보기' : '차트 보기'}
                   </button>

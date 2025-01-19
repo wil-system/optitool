@@ -76,7 +76,9 @@ export default function ChannelStatisticsPage() {
     }
   };
 
-  const handlePeriodChange = (newPeriod: PeriodType) => {
+  const handlePeriodChange = async (newPeriod: PeriodType) => {
+    setIsLoading(true);
+    setStatistics([]); // 기존 데이터 초기화
     setPeriod(newPeriod);
     
     if (newPeriod === 'custom') {
@@ -84,13 +86,29 @@ export default function ChannelStatisticsPage() {
       setEndDate(null);
       setDisplayStartDate(null);
       setDisplayEndDate(null);
-      setStatistics([]);
+      setIsLoading(false);
     } else {
-      setStartDate(null);
-      setEndDate(null);
-      setDisplayStartDate(null);
-      setDisplayEndDate(null);
-      fetchStatistics();
+      try {
+        const params = new URLSearchParams({
+          period: newPeriod
+        });
+
+        const response = await fetch(`/api/statistics/channels?${params}`);
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || '데이터 조회 실패');
+        }
+        
+        // 날짜 기준 내림차순 정렬
+        const sortedData = [...data].sort((a, b) => b.date.localeCompare(a.date));
+        setStatistics(sortedData);
+      } catch (error) {
+        console.error('통계 조회 중 오류:', error);
+        alert('데이터 조회 중 오류가 발생했습니다.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -104,12 +122,6 @@ export default function ChannelStatisticsPage() {
     fetchStatistics();
   };
 
-  useEffect(() => {
-    if (period !== 'custom') {
-      fetchStatistics();
-    }
-  }, [period]);
-
   const chartColors = [
     'rgba(255, 99, 132, 0.5)',
     'rgba(54, 162, 235, 0.5)',
@@ -122,17 +134,6 @@ export default function ChannelStatisticsPage() {
 
   const formatDate = (dateStr: string, currentPeriod: PeriodType) => {
     try {
-      if (currentPeriod === 'custom' && displayStartDate && displayEndDate) {
-        const formatKST = (date: Date) => {
-          return date.toLocaleDateString('ko-KR', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          });
-        };
-        return `${formatKST(displayStartDate)} ~ ${formatKST(displayEndDate)}`;
-      }
-
       if (!dateStr) return '';
       
       switch (currentPeriod) {
@@ -143,6 +144,17 @@ export default function ChannelStatisticsPage() {
           return `${year}년 ${parseInt(month)}월`;
         }
         case 'daily': {
+          const date = new Date(dateStr);
+          return date.toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+        }
+        case 'custom': {
+          if (displayStartDate && displayEndDate) {
+            return `${format(displayStartDate, 'yyyy년 MM월 dd일')} ~ ${format(displayEndDate, 'yyyy년 MM월 dd일')}`;
+          }
           const date = new Date(dateStr);
           return date.toLocaleDateString('ko-KR', {
             year: 'numeric',
@@ -166,24 +178,50 @@ export default function ChannelStatisticsPage() {
     }));
   };
 
-  const formatDateRange = (stats: IDailyStatistics[]) => {
-    if (stats.length === 0) return '';
+  const formatDateRange = (date: string) => {
+    if (!date) return '';
     
-    if (period === 'custom' && displayStartDate && displayEndDate) {
-      return `${format(displayStartDate, 'yyyy년 MM월 dd일')} ~ ${format(displayEndDate, 'yyyy년 MM월 dd일')}`;
-    }
-
-    switch (period) {
-      case 'yearly':
-        return `${stats[0].date}년`;
-      case 'monthly': {
-        const [year, month] = stats[0].date.split('-');
-        return `${year}년 ${month}월`;
+    try {
+      switch (period) {
+        case 'yearly':
+          return `${date}년`;
+        case 'monthly': {
+          const [year, month] = date.split('-');
+          return `${year}년 ${parseInt(month)}월`;
+        }
+        case 'daily': {
+          const parsedDate = new Date(date);
+          if (isNaN(parsedDate.getTime())) {
+            console.error('Invalid date:', date);
+            return date;
+          }
+          return parsedDate.toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+        }
+        case 'custom': {
+          if (displayStartDate && displayEndDate) {
+            return `${format(displayStartDate, 'yyyy년 MM월 dd일')} ~ ${format(displayEndDate, 'yyyy년 MM월 dd일')}`;
+          }
+          const parsedDate = new Date(date);
+          if (isNaN(parsedDate.getTime())) {
+            console.error('Invalid date:', date);
+            return date;
+          }
+          return parsedDate.toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+        }
+        default:
+          return date;
       }
-      case 'daily':
-        return format(new Date(stats[0].date), 'yyyy년 MM월 dd일');
-      default:
-        return stats[0].date;
+    } catch (error) {
+      console.error('Date formatting error:', error, date);
+      return date;
     }
   };
 
@@ -216,8 +254,24 @@ export default function ChannelStatisticsPage() {
         channels: Object.values(channelTotals)
       }];
     }
-    return stats;
+    
+    // custom이 아닌 경우 각 날짜별 데이터를 그대로 반환
+    return stats.map(stat => ({
+      date: stat.date,
+      channels: stat.channels.map(channel => ({
+        ...channel,
+        share: stat.channels.reduce((sum, ch) => sum + ch.amount, 0) > 0
+          ? (channel.amount / stat.channels.reduce((sum, ch) => sum + ch.amount, 0)) * 100
+          : 0
+      }))
+    }));
   };
+
+  useEffect(() => {
+    if (period !== 'custom') {
+      fetchStatistics();
+    }
+  }, []); // 컴포넌트 마운트 시 1회 실행
 
   return (
     <DashboardLayout>
@@ -263,7 +317,7 @@ export default function ChannelStatisticsPage() {
                   <div key={dailyStats.date} className="bg-white rounded-lg shadow">
                     <div className="px-4 py-4 bg-gray-50 rounded-t-lg flex justify-between items-center">
                       <h3 className="text-2xl font-semibold text-gray-900">
-                        {formatDateRange(statistics)}
+                        {formatDateRange(dailyStats.date)}
                       </h3>
                       <button
                         onClick={() => toggleChart(dailyStats.date)}

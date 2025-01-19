@@ -49,9 +49,9 @@ export default function ProductStatisticsPage() {
       
       if (!response.ok) throw new Error(data.error || '데이터 조회 실패');
       
-      // Object.entries를 사용하여 날짜 기준 내림차순 정렬
       const sortedData = Object.fromEntries(
-        Object.entries(data).sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
+        Object.entries(data as Record<string, IProductStatistics[]>)
+          .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
       ) as GroupedStatistics;
       
       setStatistics(sortedData);
@@ -59,6 +59,43 @@ export default function ProductStatisticsPage() {
       console.error('통계 조회 중 오류:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePeriodChange = async (newPeriod: 'daily' | 'monthly' | 'yearly' | 'custom') => {
+    setIsLoading(true);
+    setStatistics({}); // 기존 데이터 초기화
+    setPeriod(newPeriod);
+    
+    if (newPeriod === 'custom') {
+      setStartDate(null);
+      setEndDate(null);
+      setIsLoading(false);
+    } else {
+      try {
+        const params = new URLSearchParams({
+          period: newPeriod
+        });
+
+        const response = await fetch(`/api/statistics/products?${params}`);
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || '데이터 조회 실패');
+        }
+        
+        const sortedData = Object.fromEntries(
+          Object.entries(data as Record<string, IProductStatistics[]>)
+            .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
+        );
+
+        setStatistics(sortedData);
+      } catch (error) {
+        console.error('통계 조회 중 오류:', error);
+        alert('데이터 조회 중 오류가 발생했습니다.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -235,7 +272,7 @@ export default function ProductStatisticsPage() {
         <h1 className="text-2xl font-bold mb-6">상품별 통계</h1>
         
         <div className="flex items-center space-x-4 mb-6">
-          <PeriodSelector period={period} onPeriodChange={setPeriod} />
+          <PeriodSelector period={period} onPeriodChange={handlePeriodChange} />
           {period === 'custom' && (
             <>
               <DateRangePicker

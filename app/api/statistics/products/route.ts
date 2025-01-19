@@ -171,8 +171,10 @@ export async function GET(request: Request) {
           groupKey = `${kstDate.getFullYear()}-${String(kstDate.getMonth() + 1).padStart(2, '0')}`;
           break;
         case 'daily':
-        case 'custom':
           groupKey = originalDate;
+          break;
+        case 'custom':
+          groupKey = 'custom';
           break;
         default:
           groupKey = originalDate;

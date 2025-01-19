@@ -100,8 +100,10 @@ export async function GET(request: Request) {
           groupKey = `${kstDate.getFullYear()}-${String(kstDate.getMonth() + 1).padStart(2, '0')}`;
           break;
         case 'daily':
-        case 'custom':
           groupKey = originalDate;
+          break;
+        case 'custom':
+          groupKey = 'custom';
           break;
         default:
           groupKey = originalDate;
@@ -169,6 +171,15 @@ export async function GET(request: Request) {
             }
           }
         };
+      }else {
+        // 기존 데이터에 수량 합산
+        acc[groupKey][setid].xs_size += (curr.xs_size || 0);
+        acc[groupKey][setid].s_size += (curr.s_size || 0);
+        acc[groupKey][setid].m_size += (curr.m_size || 0);
+        acc[groupKey][setid].l_size += (curr.l_size || 0);
+        acc[groupKey][setid].xl_size += (curr.xl_size || 0);
+        acc[groupKey][setid].xxl_size += (curr.xxl_size || 0);
+        acc[groupKey][setid].fourxl_size += (curr.fourxl_size || 0);
       }
 
       return acc;
@@ -198,25 +209,18 @@ export async function GET(request: Request) {
           xl_size: plan.xl_size || 0,
           xxl_size: plan.xxl_size || 0,
           fourxl_size: plan.fourxl_size || 0,
-          // 사이즈별 아소트 (%) - 소수점 한자리까지 표시
+          // 사이즈별 아소트 (%)
           xs_assort: Number(((totalQuantity > 0 ? ((plan.xs_size || 0) / totalQuantity) * 100 : 0)).toFixed(1)),
           s_assort: Number(((totalQuantity > 0 ? ((plan.s_size || 0) / totalQuantity) * 100 : 0)).toFixed(1)),
           m_assort: Number(((totalQuantity > 0 ? ((plan.m_size || 0) / totalQuantity) * 100 : 0)).toFixed(1)),
           l_assort: Number(((totalQuantity > 0 ? ((plan.l_size || 0) / totalQuantity) * 100 : 0)).toFixed(1)),
           xl_assort: Number(((totalQuantity > 0 ? ((plan.xl_size || 0) / totalQuantity) * 100 : 0)).toFixed(1)),
           xxl_assort: Number(((totalQuantity > 0 ? ((plan.xxl_size || 0) / totalQuantity) * 100 : 0)).toFixed(1)),
-          fourxl_assort: Number(((totalQuantity > 0 ? ((plan.fourxl_size || 0) / totalQuantity) * 100 : 0)).toFixed(1)),
-          // 사이즈별 주문수량
-          xs_order: plan.xs_size || 0,
-          s_order: plan.s_size || 0,
-          m_order: plan.m_size || 0,
-          l_order: plan.l_size || 0,
-          xl_order: plan.xl_size || 0,
-          xxl_order: plan.xxl_size || 0,
-          fourxl_order: plan.fourxl_size || 0
+          fourxl_assort: Number(((totalQuantity > 0 ? ((plan.fourxl_size || 0) / totalQuantity) * 100 : 0)).toFixed(1))
         } as IAssortStatistics;
-      }).reduce((acc, curr) => {
-        const key = `${curr.set_product_code}`;
+      }).reduce((acc: Record<string, IAssortStatistics>, curr) => {
+        const key = curr.set_product_code;
+        
         if (!acc[key]) {
           acc[key] = curr;
         } else {
@@ -250,7 +254,7 @@ export async function GET(request: Request) {
           acc[key].fourxl_assort = Number(((totalQuantity > 0 ? (acc[key].fourxl_size / totalQuantity) * 100 : 0)).toFixed(1));
         }
         return acc;
-      }, {} as Record<string, IAssortStatistics>);
+      }, {});
     
       return {
         [date]: Object.values(groupedProducts)
