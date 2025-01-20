@@ -10,8 +10,12 @@ export async function GET(request: NextRequest) {
     const searchTerm = searchParams.get('searchTerm') || '';
     
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const currentTime = now.toTimeString().split(' ')[0].slice(0, 5);
+    const kstOffset = 9 * 60; // 한국 시간 오프셋 (9시간)
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60 * 1000); // UTC 시간
+    const kstTime = new Date(utc + (kstOffset * 60 * 1000)); // 한국 시간으로 변환
+
+    const today = kstTime.toISOString().split('T')[0];
+    const currentTime = kstTime.toTimeString().split(' ')[0].slice(0, 5);
 
     const { data: plans, error } = await supabase
       .from('sales_plans')
