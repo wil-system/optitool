@@ -12,7 +12,7 @@ export default function ProductListPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const PAGE_SIZE = 100;
+  const PAGE_SIZE = 12;
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,6 +23,7 @@ export default function ProductListPage() {
   });
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     fetchProducts();
@@ -48,9 +49,10 @@ export default function ProductListPage() {
         throw new Error('데이터 조회 실패');
       }
 
-      const { data, hasMore } = await response.json();
+      const { data, totalPages: pages, hasMore } = await response.json();
       
       setProducts(data || []);
+      setTotalPages(pages);
       setHasMore(hasMore);
     } catch (error) {
       console.error('상품 목록 조회 중 오류:', error);
@@ -463,34 +465,26 @@ export default function ProductListPage() {
             </div>
           )}
 
-          <div className="mt-4 flex justify-center">
-            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-              <button 
-                onClick={handlePrevPage}
-                disabled={currentPage === 0}
-                className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
-                  currentPage === 0 
-                    ? 'text-gray-300 cursor-not-allowed' 
-                    : 'text-gray-500 hover:bg-gray-50'
-                }`}
-              >
-                이전
-              </button>
-              <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                {currentPage + 1}
-              </button>
-              <button 
-                onClick={handleNextPage}
-                disabled={!hasMore}
-                className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
-                  !hasMore 
-                    ? 'text-gray-300 cursor-not-allowed' 
-                    : 'text-gray-500 hover:bg-gray-50'
-                }`}
-              >
-                다음
-              </button>
-            </nav>
+          <div className="mt-4 flex justify-center items-center">
+            <button 
+              onClick={handlePrevPage}
+              disabled={currentPage === 0}
+              className="relative inline-flex items-center px-4 py-2 border rounded-lg mr-2 disabled:opacity-50"
+            >
+              이전
+            </button>
+            
+            <span className="mx-4 text-sm text-gray-700">
+              {currentPage + 1} / {totalPages}
+            </span>
+
+            <button 
+              onClick={handleNextPage}
+              disabled={!hasMore || products.length === 0}
+              className="relative inline-flex items-center px-4 py-2 border rounded-lg disabled:opacity-50"
+            >
+              다음
+            </button>
           </div>
         </div>
       </div>

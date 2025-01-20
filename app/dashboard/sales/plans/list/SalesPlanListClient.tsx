@@ -62,6 +62,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
       
       const params = new URLSearchParams({
         page: currentPage.toString(),
+        size: '12',  // 페이지 사이즈 12로 통일
         searchTerm: appliedSearchTerm,
         ...(searchFilters.season && { filterSeason: 'true' }),
         ...(searchFilters.channel && { filterChannel: 'true' }),
@@ -372,11 +373,11 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
                 이전
               </button>
               <span className="mx-4 text-sm text-gray-700">
-                {currentPage} / {totalPages}
+                {currentPage} / {totalPages || 1}
               </span>
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
+                disabled={currentPage >= totalPages || totalPages === 0}
                 className="relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 disabled:opacity-50"
               >
                 다음

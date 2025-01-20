@@ -85,6 +85,7 @@ export default function SalesPlanListClient() {
   const [sets, setSets] = useState<ISetProduct[]>([]);
   const [channels, setChannels] = useState<IChannel[]>([]);
   const [categories, setCategories] = useState<ICategory[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
 
   const fetchData = async (page = 1) => {
     try {
@@ -96,7 +97,6 @@ export default function SalesPlanListClient() {
         dataType: 'sales'
       });
 
-      // Promise.all을 사용하여 모든 데이터를 병렬로 가져오기
       const [performanceResponse, setsResponse, channelsResponse, categoriesResponse] = await Promise.all([
         fetch(`/api/sales/performance?${params}`),
         fetch('/api/sets'),
@@ -127,6 +127,7 @@ export default function SalesPlanListClient() {
         }
         setHasMore(performanceResult.hasMore);
         setCurrentPage(page);
+        setTotalPages(performanceResult.totalPages);
       }
 
       // 추가 데이터 설정
@@ -238,7 +239,6 @@ export default function SalesPlanListClient() {
   };
 
   const displayData = isSearchActive ? searchResults : data;
-  const totalPages = Math.ceil(displayData.length / itemsPerPage);
   const currentItems = displayData.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -493,25 +493,27 @@ export default function SalesPlanListClient() {
           </div>
 
           <div className="bg-white px-4 py-3 flex items-center justify-center border-t border-gray-200 sm:px-6">
-            <nav className="flex items-center justify-between">
+            <div className="mt-4 flex justify-center items-center">
               <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 disabled:opacity-50"
+                className="px-4 py-2 border rounded-lg mr-2 disabled:opacity-50"
               >
                 이전
               </button>
+              
               <span className="mx-4 text-sm text-gray-700">
                 {currentPage} / {totalPages}
               </span>
+
               <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 disabled:opacity-50"
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                disabled={!hasMore || data.length === 0}
+                className="px-4 py-2 border rounded-lg disabled:opacity-50"
               >
                 다음
               </button>
-            </nav>
+            </div>
           </div>
         </div>
       </div>

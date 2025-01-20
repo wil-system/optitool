@@ -106,11 +106,12 @@ export default function ChannelListPage() {
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const PAGE_SIZE = 100;
+  const PAGE_SIZE = 12;
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<ISalesChannels | null>(null);
   const [editMode, setEditMode] = useState<'create' | 'edit'>('create');
   const [error, setError] = useState<string>('');
+  const [totalPages, setTotalPages] = useState(1);
 
   const fetcher = (url: string) => fetch(url).then(res => res.json());
   const { data, isLoading: _ } = useSWR('/api/channels', fetcher);
@@ -135,8 +136,9 @@ export default function ChannelListPage() {
         throw new Error('데이터 조회 실패');
       }
 
-      const { data, hasMore } = await response.json();
+      const { data, totalPages: pages, hasMore } = await response.json();
       setChannels(data || []);
+      setTotalPages(pages);
       setHasMore(hasMore);
     } catch (error) {
       console.error('채널 목록 조회 중 오류:', error);
@@ -394,7 +396,7 @@ export default function ChannelListPage() {
           </table>
 
           {/* 페이지네이션 */}
-          <div className="mt-4 flex justify-center">
+          <div className="mt-4 flex justify-center items-center">
             <button
               onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
               disabled={currentPage === 0}
@@ -402,9 +404,14 @@ export default function ChannelListPage() {
             >
               이전
             </button>
+            
+            <span className="mx-4 text-sm text-gray-700">
+              {currentPage + 1} / {totalPages}
+            </span>
+
             <button
               onClick={() => setCurrentPage(prev => prev + 1)}
-              disabled={!hasMore}
+              disabled={!hasMore || channels.length === 0}
               className="px-4 py-2 border rounded-lg disabled:opacity-50"
             >
               다음

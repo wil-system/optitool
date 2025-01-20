@@ -5,7 +5,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const page = Number(searchParams.get('page')) || 0;
-    const size = Number(searchParams.get('size')) || 100;
+    const size = Number(searchParams.get('size')) || 12;
     const searchTerm = searchParams.get('searchTerm') || '';
     const searchFields = searchParams.get('searchFields')?.split(',') || [];
 
@@ -29,7 +29,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ 
       data,
-      count,
+      totalCount: count || 0,
+      totalPages: count ? Math.ceil(count / size) : 0,
+      currentPage: page,
       hasMore: count ? (page + 1) * size < count : false
     });
   } catch (error) {

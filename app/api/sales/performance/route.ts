@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const page = Number(searchParams.get('page')) || 0;
-    const pageSize = 10;
+    const pageSize = 12;
     
     const now = new Date();
     const kstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -22,12 +22,12 @@ export async function GET(request: Request) {
     const registeredPlanIds = performanceData?.map(item => item.sales_plan_id) || [];
 
     // 판매계획 조회
-    const { data: salesPlans, error: salesError } = await supabase
+    const { data: salesPlans, error: salesError, count } = await supabase
       .from('sales_plans')
       .select(`
         *,
         channel:sales_channels(channel_name)
-      `)
+      `, { count: 'exact' })
       .or(
         `plan_date.lt.${today},` +
         `and(plan_date.eq.${today},plan_time.lt.${currentTime})`
@@ -67,18 +67,12 @@ export async function GET(request: Request) {
       };
     }) || [];
 
-    const { count } = await supabase
-      .from('sales_plans')
-      .select('*', { count: 'exact', head: true })
-      .or(
-        `plan_date.lt.${today},` +
-        `and(plan_date.eq.${today},plan_time.lt.${currentTime})`
-      )
-      .not('id', 'in', `(${registeredPlanIds.join(',')})`)
-
     return NextResponse.json({
       data: formattedData,
-      hasMore: (page + 1) * pageSize < (count || 0)
+      totalCount: count || 0,
+      totalPages: count ? Math.ceil(count / pageSize) : 0,
+      currentPage: page,
+      hasMore: count ? (page + 1) * pageSize < count : false
     });
 
   } catch (error) {

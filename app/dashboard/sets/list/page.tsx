@@ -89,10 +89,11 @@ export default function SetListPage() {
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const PAGE_SIZE = 100;
+  const PAGE_SIZE = 12;
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [selectedSet, setSelectedSet] = useState<ISetProduct | null>(null);
   const [viewSet, setViewSet] = useState<ISetProduct | null>(null);
+  const [totalPages, setTotalPages] = useState(1);
 
   const fetchSets = useCallback(async () => {
     try {
@@ -114,8 +115,9 @@ export default function SetListPage() {
         throw new Error('데이터 조회 실패');
       }
 
-      const { data, hasMore } = await response.json();
+      const { data, totalPages: pages, hasMore } = await response.json();
       setSets(data?.filter((set: any) => set.is_active !== false) || []);
+      setTotalPages(pages);
       setHasMore(hasMore);
     } catch (error) {
       console.error('세트 목록 조회 중 오류:', error);
@@ -405,7 +407,7 @@ export default function SetListPage() {
           </div>
 
           {/* 페이지네이션 */}
-          <div className="mt-4 flex justify-center">
+          <div className="mt-4 flex justify-center items-center">
             <button
               onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
               disabled={currentPage === 0}
@@ -413,9 +415,14 @@ export default function SetListPage() {
             >
               이전
             </button>
+            
+            <span className="mx-4 text-sm text-gray-700">
+              {currentPage + 1} / {totalPages}
+            </span>
+
             <button
               onClick={() => setCurrentPage(prev => prev + 1)}
-              disabled={!hasMore}
+              disabled={!hasMore || sets.length === 0}
               className="px-4 py-2 border rounded-lg disabled:opacity-50"
             >
               다음

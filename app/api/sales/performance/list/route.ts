@@ -5,7 +5,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '0');
-    const size = parseInt(searchParams.get('size') || '10');
+    const size = parseInt(searchParams.get('size') || '12');
     const searchTerm = searchParams.get('searchTerm') || '';
     const searchFields = (searchParams.get('searchFields') || '').split(',');
 
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
             channel_name
           )
         )
-      `)
+      `, { count: 'exact' })
       .eq('is_active', true)
       .not('sales_plan_id', 'is', null)
       .order('created_at', { ascending: false });
@@ -36,9 +36,7 @@ export async function GET(request: Request) {
     // 페이지네이션 적용
     const from = page * size;
     const to = from + size - 1;
-    query = query.range(from, to);
-
-    const { data, error, count } = await query;
+    const { data, error, count } = await query.range(from, to);
 
     if (error) {
       throw error;
@@ -99,7 +97,10 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       data: formattedData,
-      count: count || 0
+      totalCount: count || 0,
+      totalPages: count ? Math.ceil(count / size) : 0,
+      currentPage: page,
+      hasMore: count ? (page + 1) * size < count : false
     });
 
   } catch (error) {

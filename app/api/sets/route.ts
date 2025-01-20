@@ -5,15 +5,15 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const page = Number(searchParams.get('page')) || 0;
-    const size = Number(searchParams.get('size')) || 100;
+    const size = Number(searchParams.get('size')) || 12;
     const searchTerm = searchParams.get('searchTerm') || '';
     const searchFields = searchParams.get('searchFields')?.split(',') || [];
 
     let query = supabase
       .from('set_products')
-      .select('id, set_id, set_name, individual_product_ids, remarks, created_at, is_active', { count: 'exact' })
+      .select('*', { count: 'exact' })
       .eq('is_active', true)
-      .order('set_id', { ascending: true });
+      .order('created_at', { ascending: false });
 
     // 검색 조건 추가
     if (searchTerm && searchFields.length > 0) {
@@ -23,20 +23,22 @@ export async function GET(request: Request) {
       query = query.or(searchConditions.join(','));
     }
 
-    const { data: rawData, error, count } = await query
+    const { data, error, count } = await query
       .range(page * size, (page + 1) * size - 1);
 
     if (error) throw error;
 
     // is_active가 없는 경우 기본값 true로 설정
-    const data = rawData?.map(item => ({
+    const dataWithActive = data?.map(item => ({
       ...item,
       is_active: item.is_active ?? true
     }));
 
     return NextResponse.json({ 
-      data,
-      count,
+      data: dataWithActive,
+      totalCount: count || 0,
+      totalPages: count ? Math.ceil(count / size) : 0,
+      currentPage: page,
       hasMore: count ? (page + 1) * size < count : false
     });
   } catch (error) {

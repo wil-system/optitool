@@ -37,7 +37,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
   const itemsPerPage = 10;
   const [data, setData] = useState<SalesPerformance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
@@ -53,33 +53,32 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
   const [selectedPerformance, setSelectedPerformance] = useState<SalesPerformance | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [performanceToDelete, setPerformanceToDelete] = useState<SalesPerformance | null>(null);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const fetchData = async (page = 1) => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      setError(null);
-      
-      const response = await fetch(`/api/sales/performance/list?page=${page - 1}`);
-      
+      const params = new URLSearchParams({
+        page: String(currentPage - 1),
+        size: '12',  // 페이지 사이즈 12로 통일
+        searchTerm: appliedSearchTerm,
+        searchFields: Object.entries(searchFilters)
+          .filter(([_, value]) => value.checked)
+          .map(([key]) => key)
+          .join(',')
+      });
+
+      const response = await fetch(`/api/sales/performance/list?${params}`);
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error('데이터 조회 실패');
       }
-      
-      const result = await response.json();
-      
-      if (result.error) {
-        throw new Error(result.error);
-      }
-      
-      if (Array.isArray(result.data)) {
-        setData(result.data);
-      } else {
-        throw new Error('Invalid data format received');
-      }
-    } catch (err) {
-      console.error('Error fetching data:', err);
-      setError(err instanceof Error ? err : null);
-      setData([]);
+
+      const { data, totalPages: pages } = await response.json();
+      setData(data || []);
+      setTotalPages(pages);
+    } catch (error) {
+      console.error('Error:', error);
+      setError(error instanceof Error ? error.message : '데이터 조회 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -109,7 +108,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
     );
   });
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  
   const currentItems = filteredData.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -192,7 +191,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
       }
 
       // 성공적으로 삭제된 후 데이터 새로고침
-      await fetchData(currentPage);
+      await fetchData();
       setIsDeleteModalOpen(false);
       setPerformanceToDelete(null);
     } catch (error) {
@@ -228,7 +227,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
               </svg>
               <h3 className="text-lg font-medium text-red-800">오류 발생</h3>
             </div>
-            <p className="mt-2 text-sm text-red-700">{error.message}</p>
+            <p className="mt-2 text-sm text-red-700">{error}</p>
             <button
               onClick={() => fetchData()}
               className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
@@ -377,7 +376,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
               </span>
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
+                disabled={currentPage >= totalPages}
                 className="relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 disabled:opacity-50"
               >
                 다음

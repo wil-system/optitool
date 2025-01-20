@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
+    const size = parseInt(searchParams.get('size') || '12');  // 페이지 사이즈 12로 통일
     const searchTerm = searchParams.get('searchTerm') || '';
     
     const now = new Date();
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const today = kstTime.toISOString().split('T')[0];
     const currentTime = kstTime.toTimeString().split(' ')[0].slice(0, 5);
 
-    const { data: plans, error } = await supabase
+    let query = supabase
       .from('sales_plans')
       .select(`
         *,
@@ -27,9 +28,11 @@ export async function GET(request: NextRequest) {
           channel_name,
           channel_details
         )
-      `)
+      `, { count: 'exact' })  // 전체 개수를 가져오기 위해 count 옵션 추가
       .eq('is_active', true)
       .or(`plan_date.gt.${today},and(plan_date.eq.${today},plan_time.gte.${currentTime})`);
+
+    const { data: plans, error, count } = await query;
 
     if (error) throw error;
 
@@ -70,15 +73,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const limit = 10;
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedPlans = filteredPlans.slice(startIndex, endIndex);
-
     return NextResponse.json({
-      data: paginatedPlans,
-      totalPages: Math.ceil(filteredPlans.length / limit),
-      currentPage: page
+      data: filteredPlans,
+      totalCount: count || 0,
+      totalPages: count ? Math.ceil(count / size) : 0,
+      currentPage: page,
+      hasMore: count ? page * size < count : false
     });
 
   } catch (error) {

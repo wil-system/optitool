@@ -86,13 +86,13 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const page = Number(searchParams.get('page')) || 0;
-    const size = Number(searchParams.get('size')) || 100;
+    const size = Number(searchParams.get('size')) || 12;  // 페이지당 12개 항목
     const searchTerm = searchParams.get('searchTerm') || '';
     const searchFields = searchParams.get('searchFields')?.split(',') || [];
 
     let query = supabase
       .from('products')
-      .select('*', { count: 'exact' })
+      .select('*', { count: 'exact' })  // 전체 개수를 가져오기 위해 count 옵션 추가
       .order('updated_at', { ascending: false });
 
     // 검색 조건 추가
@@ -103,6 +103,7 @@ export async function GET(request: Request) {
       query = query.or(searchConditions.join(','));
     }
 
+    // 페이지네이션 적용
     const { data, error, count } = await query
       .range(page * size, (page + 1) * size - 1);
 
@@ -110,7 +111,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ 
       data,
-      count,
+      totalCount: count || 0,  // 전체 항목 수
+      totalPages: count ? Math.ceil(count / size) : 0,  // 전체 페이지 수
+      currentPage: page,
       hasMore: count ? (page + 1) * size < count : false
     });
   } catch (error) {
