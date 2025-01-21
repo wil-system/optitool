@@ -93,6 +93,7 @@ export default function ChannelRegistrationModal({
     e.preventDefault();
     
     try {
+      // 채널 상세 정보를 배열로 변환
       const channelDetailsArray = channelDetails
         .map(detail => detail.value.trim())
         .filter(Boolean);
@@ -104,30 +105,29 @@ export default function ChannelRegistrationModal({
 
       const updatedFormData = {
         ...formData,
-        channel_details: channelDetailsArray.join(',')
+        channel_details: channelDetailsArray // 문자열이 아닌 배열로 전송
       };
 
-      const url = mode === 'edit' 
-        ? `/api/channels/${updatedFormData.channel_code}`
-        : '/api/channels';
-
-      const response = await fetch(url, {
-        method: mode === 'edit' ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedFormData),
-      });
-
-      const data = await response.json();
+      const response = await fetch(
+        mode === 'create' 
+          ? '/api/channels' 
+          : `/api/channels/${formData.channel_code}`,
+        {
+          method: mode === 'create' ? 'POST' : 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatedFormData),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error(data.error || '처리 중 오류가 발생했습니다.');
+        throw new Error('채널 등록/수정 실패');
       }
 
-      alert(data.message || (mode === 'edit' ? '수정되었습니다.' : '등록되었습니다.'));
       onSuccess();
       onClose();
+      resetForm();
     } catch (error) {
       console.error('Error:', error);
       alert(error instanceof Error ? error.message : '처리 중 오류가 발생했습니다.');

@@ -24,6 +24,7 @@ export async function GET(request: Request) {
         sales_plans!sales_performance_sales_plan_id_fkey (
           id,
           channel_id,
+          channel_detail,
           plan_date,
           target_quantity,
           sales_channels!sales_plans_channel_id_fkey (
@@ -96,12 +97,12 @@ export async function GET(request: Request) {
         acc[groupKey] = {};
       }
 
-      const channelId = `${channel.id}-${channel.channel_details}`;
+      const channelId = `${channel.id}-${curr.sales_plans?.channel_detail}`;
       if (!acc[groupKey][channelId]) {
         acc[groupKey][channelId] = {
           id: channelId.toString(),
           channel_name: channel.channel_name,
-          channel_detail: channel.channel_details,
+          channel_detail: curr.sales_plans?.channel_detail,
           quantity: 0,
           amount: 0,
           target_quantity: 0,
