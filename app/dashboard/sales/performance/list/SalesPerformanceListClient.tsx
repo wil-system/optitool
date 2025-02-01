@@ -344,6 +344,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.channel_detail}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.product_category}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.set_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.set_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right group-hover:text-blue-600">{formatNumber(item.target_quantity)}개</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right group-hover:text-blue-600">{formatNumber(item.performance)}개</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right group-hover:text-blue-600">{item.achievement_rate}%</td>

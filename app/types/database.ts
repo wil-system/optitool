@@ -139,3 +139,13 @@ export interface ICategory {
   created_at: string;
   updated_at: string;
 } 
+
+export interface IProduct {
+  product_code: string;
+  product_name: string;
+  specification: string;
+  total: number;
+  warehouse_106: number;
+  warehouse_3333: number;
+  warehouse_12345: number;
+}

@@ -23,6 +23,8 @@ interface SalesPlan {
 
 interface DaySchedule {
   date: number;
+  month: number;
+  year: number;
   schedules: ScheduleItem[];
   salesPlans: SalesPlan[];
 }
@@ -197,8 +199,11 @@ export default function SchedulePage() {
     // 이전 달의 마지막 날짜들 채우기
     const firstDayOfWeek = firstDay.getDay();
     for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+      const prevDate = new Date(year, month, -i);
       days.push({
-        date: new Date(year, month, -i).getDate(),
+        date: prevDate.getDate(),
+        month: prevDate.getMonth(),
+        year: prevDate.getFullYear(),
         schedules: [],
         salesPlans: []
       });
@@ -206,9 +211,8 @@ export default function SchedulePage() {
     
     // 현재 달의 날짜들 채우기
     for (let i = 1; i <= lastDay.getDate(); i++) {
-      // 날짜 형식을 YYYY-MM-DD로 맞추기
       const currentDate = new Date(year, month, i);
-      const formattedDate = currentDate.toLocaleDateString('fr-CA', { // fr-CA 로케일은 YYYY-MM-DD 형식을 반환
+      const formattedDate = currentDate.toLocaleDateString('fr-CA', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -220,6 +224,8 @@ export default function SchedulePage() {
       
       days.push({
         date: i,
+        month: month,
+        year: year,
         schedules: daySchedules,
         salesPlans: daySalesPlans
       });
@@ -302,10 +308,12 @@ export default function SchedulePage() {
           {generateCalendarDays().map((day, index) => {
             const today = new Date();
             const koreaToday = new Date(today.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+            
+            // 날짜, 월, 연도가 모두 일치하는지 확인
             const isToday = 
               koreaToday.getDate() === day.date && 
-              koreaToday.getMonth() === currentDate.getMonth() && 
-              koreaToday.getFullYear() === currentDate.getFullYear();
+              koreaToday.getMonth() === day.month && 
+              koreaToday.getFullYear() === day.year;
 
             return (
               <div 
