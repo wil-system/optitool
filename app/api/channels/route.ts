@@ -114,10 +114,10 @@ export async function POST(request: Request) {
     }
 
     // PostgreSQL 배열 형식으로 변환
-    const channelDetailsArray = channel.channel_details
-      .split(',')
-      .map((detail: string) => detail.trim())
-      .filter(Boolean);
+    const channelDetailsArray = channel.channel_details;
+      // .split(',')
+      // .map((detail: string) => detail.trim())
+      // .filter(Boolean);
     
     const formattedChannelDetails = `{${channelDetailsArray.map((detail: string) => `"${detail}"`).join(',')}}`;
 

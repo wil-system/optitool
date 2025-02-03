@@ -7,16 +7,16 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
-    const size = parseInt(searchParams.get('size') || '12');  // 페이지 사이즈 12로 통일
+    const size = parseInt(searchParams.get('size') || '12');
     const searchTerm = searchParams.get('searchTerm') || '';
     
     const now = new Date();
-    const kstOffset = 9 * 60; // 한국 시간 오프셋 (9시간)
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60 * 1000); // UTC 시간
-    const kstTime = new Date(utc + (kstOffset * 60 * 1000)); // 한국 시간으로 변환
-
-    const today = kstTime.toISOString().split('T')[0];
-    const currentTime = kstTime.toTimeString().split(' ')[0].slice(0, 5);
+    const today = now.toISOString().split('T')[0];
+    const currentTime = now.toLocaleTimeString('en-US', { 
+      hour12: false, 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
 
     let query = supabase
       .from('sales_plans')
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
           channel_name,
           channel_details
         )
-      `, { count: 'exact' })  // 전체 개수를 가져오기 위해 count 옵션 추가
+      `, { count: 'exact' })
       .eq('is_active', true)
       .or(`plan_date.gt.${today},and(plan_date.eq.${today},plan_time.gte.${currentTime})`);
 

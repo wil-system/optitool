@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { IInventoryData } from '@/app/types/inventory';
 import LoadingSpinner from '@/app/components/common/LoadingSpinner';
 import InventoryTable from '@/app/dashboard/inventory/InventoryTable';
+import { format } from 'date-fns';
 
 // 진행 상태를 위한 타입 정의
 type ProgressStatus = {
@@ -141,6 +142,9 @@ export default function InventoryClient() {
       setData(result.data);
       setFilteredData(result.data);
       setProgress(prev => ({ ...prev, inventory: 'complete' }));
+      
+      // 마지막 동기화 시간 업데이트
+      setLastSyncDate(new Date().toUTCString());
 
     } catch (err) {
       console.error('데이터 조회 에러:', err);
@@ -222,13 +226,7 @@ export default function InventoryClient() {
             </svg>
             마지막 동기화: {' '}
             <span className="font-medium ml-1">
-              {new Date(lastSyncDate).toLocaleDateString('ko-KR', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
+                {format(new Date(lastSyncDate), 'yyyy-MM-dd HH:mm')}
             </span>
           </div>
         )}

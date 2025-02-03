@@ -102,4 +102,31 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+    
+    const { error } = await supabase
+      .from('operational_quantities')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('운영수량 삭제 에러:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : '운영수량 삭제 중 오류가 발생했습니다.' 
+      },
+      { status: 500 }
+    );
+  }
 } 

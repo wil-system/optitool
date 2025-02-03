@@ -157,7 +157,7 @@ export default function SalesPlanListClient() {
     setFormData(prev => ({
       ...prev,
       performance: totalSum,
-      achievementRate: selectedPlan ? (totalSum / selectedPlan.target_quantity) * 100 : 0
+      achievementRate: selectedPlan ? Number(((totalSum / selectedPlan.target_quantity) * 100).toFixed(2)) : 0
     }));
   }, [formData.xs85, formData.s90, formData.m95, formData.l100, 
       formData.xl105, formData.xxl110, formData.xxxl120, selectedPlan]);

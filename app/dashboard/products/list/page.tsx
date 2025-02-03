@@ -359,7 +359,10 @@ export default function ProductListPage() {
                 검색
               </button>
               <button
-                onClick={() => setIsRegistrationModalOpen(true)}
+                onClick={() => {
+                  setSelectedProduct(null);
+                  setIsRegistrationModalOpen(true);
+                }}
                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
               >
                 상품등록
@@ -496,7 +499,7 @@ export default function ProductListPage() {
         onClose={handleCloseModal}
         onSuccess={handleRegistrationSuccess}
         initialData={selectedProduct}
-        mode="edit"
+        mode={selectedProduct ? 'edit' : 'create'}
       />
     </DashboardLayout>
   );

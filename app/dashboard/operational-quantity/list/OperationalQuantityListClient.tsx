@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import LoadingSpinner from '@/app/components/common/LoadingSpinner';
+import { format , parseISO } from 'date-fns';
 
 interface IOperationalQuantity {
   id: string;
@@ -86,6 +87,9 @@ export default function OperationalQuantityListClient() {
               등록일자
             </th>
             <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              시간
+            </th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               상품명
             </th>
             <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -110,13 +114,12 @@ export default function OperationalQuantityListClient() {
             <tr key={item.id} className="hover:bg-blue-50 transition-colors duration-150">
               <td className="px-6 py-4">
                 <div className="text-sm text-gray-900">
-                  {new Date(item.created_at).toLocaleDateString('ko-KR', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
+                {format(new Date(item.created_at), 'yyyy-MM-dd')}
+                </div>
+              </td>
+              <td className="px-6 py-4">
+                <div className="text-sm text-gray-900">
+                  {format(new Date(item.created_at), "HH:mm")}
                 </div>
               </td>
               <td className="px-6 py-4">
