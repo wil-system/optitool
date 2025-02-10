@@ -51,6 +51,7 @@ export async function GET(
 
     const channelDetails: IChannelDetailStatistics[] = data.map((item) => ({
       date: item.sales_plans.plan_date,
+      temperature: item.temperature,
       time: item.sales_plans.plan_time.slice(0, 5),
       channel_detail: item.sales_plans.channel_detail,
       category: item.sales_plans.product_category,
