@@ -10,25 +10,40 @@ interface Props {
 }
 
 interface SalesPerformance {
-  set_id: any;
-  set_name: any;
-  product_name: any;
-  product_category: any;
-  channel_detail: any;
-  channel_name: any;
-  season: any;
   id: number;
   sales_plan_id: number;
   performance: number;
   achievement_rate: number;
   temperature: number;
+  xs_size: number;
+  s_size: number;
+  m_size: number;
+  l_size: number;
+  xl_size: number;
+  xxl_size: number;
+  fourxl_size: number;
+  us_order: number;
+  target_quantity: number;
   created_at: string;
   updated_at: string;
-  plan_date: string | null;
-  plan_time: string | null;
-  target_quantity: number;
+  set_name: string;
+  set_id: string;
   product_code: string;
+  channel_name: string;
+  channel_detail: string;
+  product_category: string;
+  plan_date: string;
+  plan_time: string;
+  season: string;
   sale_price: number;
+  quantity_composition: string;
+  xs85: number;
+  s90: number;
+  m95: number;
+  l100: number;
+  xl105: number;
+  xxl110: number;
+  xxxl120: number;
 }
 
 type SearchFilterKey = 'season' | 'channel' | 'channelDetail' | 'category' | 'productName' | 'setId';
@@ -54,6 +69,8 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [performanceToDelete, setPerformanceToDelete] = useState<SalesPerformance | null>(null);
   const [totalPages, setTotalPages] = useState(1);
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
 
   const fetchData = async () => {
     try {
@@ -103,7 +120,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
       (searchFilters.channel.checked && item.channel_name?.toString().toLowerCase().includes(searchValue)) ||
       (searchFilters.channelDetail.checked && item.channel_detail?.toString().toLowerCase().includes(searchValue)) ||
       (searchFilters.category.checked && item.product_category?.toString().toLowerCase().includes(searchValue)) ||
-      (searchFilters.productName.checked && item.product_name?.toString().toLowerCase().includes(searchValue)) ||
+      (searchFilters.productName.checked && item.set_name?.toString().toLowerCase().includes(searchValue)) ||
       (searchFilters.setId.checked && item.set_id?.toString().toLowerCase().includes(searchValue))
     );
   });
@@ -130,27 +147,29 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
     }
   };
 
-  const handleRowClick = (item: any) => {
-    setSelectedPerformance(item);
+  const handleRowClick = (e: React.MouseEvent, performance: SalesPerformance) => {
+    setSelectedPerformance(performance);
     setIsDetailModalOpen(true);
   };
 
-  const calculateSizeTotal = (item: any) => {
-    const sizes = [
-      item.xs85 || 0,
-      item.s90 || 0,
-      item.m95 || 0,
-      item.l100 || 0,
-      item.xl105 || 0,
-      item.xxl110 || 0,
-      item.xxxl120 || 0
-    ];
-    return sizes.reduce((acc, curr) => acc + curr, 0);
+  const calculateSizeTotal = (item: SalesPerformance) => {
+    if (!item) return 0;
+    
+    return (
+      Number(item.xs85 || 0) +
+      Number(item.s90 || 0) +
+      Number(item.m95 || 0) +
+      Number(item.l100 || 0) +
+      Number(item.xl105 || 0) +
+      Number(item.xxl110 || 0) +
+      Number(item.xxxl120 || 0) +
+      Number(item.us_order || 0)
+    );
   };
 
   const calculateSizePercent = (size: number, total: number) => {
-    if (total === 0) return 0;
-    return ((size / total) * 100).toFixed(1);
+    if (!total) return 0;
+    return Number(((size / total) * 100).toFixed(1));
   };
 
   const formatDate = (dateString: string | null | undefined) => {
@@ -313,48 +332,107 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">운영시즌</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">운영시즌</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">일자</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품코드</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">판매채널</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">채널상세</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">카테고리</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품명</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">세트품번</th>
+                  <th className="px-10 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품명</th>
+                  <th className="px-10 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">추가구성</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">세트품번</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">목표</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">실적</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">달성률</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">판매금액</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"> </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {currentItems.map((item) => (
                   <tr 
                     key={item.id} 
-                    onClick={() => handleRowClick(item)}
-                    className="hover:bg-blue-50/50 cursor-pointer transition-colors duration-150 ease-in-out group"
+                    className="hover:bg-gray-50 cursor-pointer transition-colors duration-150 ease-in-out"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.season}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{formatDate(item.plan_date)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{formatTime(item.plan_time)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.product_code}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.channel_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.channel_detail}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.product_category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.set_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 group-hover:text-blue-600">{item.set_id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right group-hover:text-blue-600">{formatNumber(item.target_quantity)}개</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right group-hover:text-blue-600">{formatNumber(item.performance)}개</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right group-hover:text-blue-600">{item.achievement_rate}%</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right group-hover:text-blue-600">{formatPrice(item.sale_price * item.performance)}원</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{item.season}</td>
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{formatDate(item.plan_date)}</td>
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{formatTime(item.plan_time)}</td>
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{item.product_code}</td>
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{item.channel_name}</td>
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{item.channel_detail}</td>
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{item.product_category}</td>
+                    <td 
+                      className="px-1 py-4 whitespace-nowrap text-sm text-gray-900 text-center"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{item.set_name}</td>
+                    <td 
+                      className="px-1 py-4 whitespace-nowrap text-sm text-gray-900 text-center"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{item.quantity_composition || '-'}</td>
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{item.set_id}</td>
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{formatNumber(item.target_quantity)}개</td>
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{formatNumber(item.performance)}개</td>
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{item.achievement_rate}%</td>
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"
+                      onClick={(e) => handleRowClick(e, item)}
+                    >{formatPrice(item.sale_price * item.performance)}원</td>
+                    <td className="px-1 py-1 whitespace-nowrap text-sm text-gray-500">
                       <button
-                        onClick={(e) => handleDeleteClick(e, item)}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPerformanceToDelete(item);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                        title="삭제"
                       >
-                        삭제
+                        <svg 
+                          className="w-5 h-5 text-gray-400 hover:text-red-500" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={2} 
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
+                          />
+                        </svg>
                       </button>
                     </td>
                   </tr>
@@ -432,10 +510,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                       <p className="text-blue-600 font-semibold">시간</p>
                       <p className="font-medium text-gray-800">{formatTime(selectedPerformance.plan_time)}</p>
                     </div>
-                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100 h transition-all">
-                      <p className="text-blue-600 font-semibold">온도</p>
-                      <p className="font-medium text-gray-800">{selectedPerformance.temperature}°C</p>
-                    </div>
+  
                     <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100  transition-all">
                       <p className="text-blue-600 font-semibold">카테고리</p>
                       <p className="font-medium text-gray-800">{selectedPerformance.product_category}</p>
@@ -462,7 +537,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                 {/* 실적 정보 */}
                 <div className="col-span-2 bg-gray-50 p-4 rounded-lg">
                   <h3 className="text-sm font-semibold text-gray-800 mb-3">실적 정보</h3>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-4 gap-4">
                     <div className="bg-white p-4 rounded-lg text-center">
                       <p className="text-blue-600 font-semibold">목표</p>
                       <p className="text-lg font-bold">{formatNumber(selectedPerformance.target_quantity)}개</p>
@@ -475,6 +550,10 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                       <p className="text-blue-600 font-semibold">달성률</p>
                       <p className="text-lg font-bold ">{selectedPerformance.achievement_rate}%</p>
                     </div>
+                    <div className="bg-white p-4 rounded-lg text-center">
+                      <p className="text-blue-600 font-semibold">전환률</p>
+                      <p className="text-lg font-bold ">{selectedPerformance.temperature}%</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -484,48 +563,69 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                 <h3 className="text-sm font-semibold text-blue-600 mb-3">사이즈별 정보</h3>
                 <div className="space-y-2">
                   {(() => {
-                    // 모든 사이즈의 값을 미리 계산하여 최대값 찾기
-                    const sizeValues = [
-                      { label: 'XS(85)', key: 'xs85' },
-                      { label: 'S(90)', key: 's90' },
-                      { label: 'M(95)', key: 'm95' },
-                      { label: 'L(100)', key: 'l100' },
-                      { label: 'XL(105)', key: 'xl105' },
-                      { label: 'XXL(110)', key: 'xxl110' },
-                      { label: 'XXXL(120)', key: 'xxxl120' }
-                    ].map(size => ({
-                      ...size,
-                      value: Number(selectedPerformance[size.key as keyof SalesPerformance]) || 0
-                    }));
+                    const sizeMapping = [
+                      { label: 'XS(85)', value: selectedPerformance.xs85 },
+                      { label: 'S(90)', value: selectedPerformance.s90 },
+                      { label: 'M(95)', value: selectedPerformance.m95 },
+                      { label: 'L(100)', value: selectedPerformance.l100 },
+                      { label: 'XL(105)', value: selectedPerformance.xl105 },
+                      { label: 'XXL(110)', value: selectedPerformance.xxl110 },
+                      { label: 'XXXL(120)', value: selectedPerformance.xxxl120 }
+                    ];
 
-                    const maxValue = Math.max(...sizeValues.map(size => size.value));
                     const total = calculateSizeTotal(selectedPerformance);
+                    const maxValue = Math.max(...sizeMapping.map(size => size.value || 0));
 
-                    return sizeValues.map(size => {
-                      const percent = calculateSizePercent(size.value, total);
+                    return (
+                      <>
+                        {sizeMapping.map((size, index) => {
+                          const value = size.value || 0;
+                          const percent = calculateSizePercent(value, total);
 
-                      return (
-                        <div key={size.label} className="flex items-center bg-white p-2.5 rounded-md text-sm shadow-sm border border-blue-100">
-                          <span className="w-20 font-medium text-gray-700">{size.label}</span>
-                          <div className="flex-1 mx-3 h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full rounded-full ${size.value === maxValue && size.value !== 0 ? 'bg-red-500' : 'bg-blue-500'}`}
-                              style={{ width: `${percent}%` }}
-                            ></div>
+                          return (
+                            <div key={index} className="flex items-center bg-white p-2.5 rounded-md text-sm shadow-sm border border-blue-100">
+                              <span className="w-20 font-medium text-gray-700">{size.label}</span>
+                              <div className="flex-1 mx-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full ${value === maxValue && value !== 0 ? 'bg-red-500' : 'bg-blue-500'}`}
+                                  style={{ width: `${percent}%` }}
+                                ></div>
+                              </div>
+                              <span className={`w-28 text-right text-sm font-medium ${value === maxValue && value !== 0 ? 'text-red-600' : 'text-gray-700'}`}>
+                                {formatNumber(value)}개 <span className="text-gray-500">({percent}%)</span>
+                              </span>
+                            </div>
+                          );
+                        })}
+
+                        {/* 미주 주문량 표시 */}
+                        <div className="mt-4 pt-4 border-t-2 border-blue-200">
+                          <div className="flex items-center bg-yellow-50 p-2.5 rounded-md text-sm shadow-sm border border-yellow-200">
+                            <span className="w-20 font-medium text-yellow-800">미주 주문</span>
+                            <div className="flex-1 mx-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full rounded-full bg-yellow-500"
+                                style={{ width: `${calculateSizePercent(selectedPerformance.us_order || 0, total)}%` }}
+                              ></div>
+                            </div>
+                            <span className="w-28 text-right text-sm font-medium text-yellow-800">
+                              {formatNumber(selectedPerformance.us_order || 0)}개 
+                              <span className="text-gray-500">
+                                ({calculateSizePercent(selectedPerformance.us_order || 0, total)}%)
+                              </span>
+                            </span>
                           </div>
-                          <span className={`w-28 text-right text-sm font-medium ${size.value === maxValue && size.value !== 0 ? 'text-red-600' : 'text-gray-700'}`}>
-                            {formatNumber(size.value)}개 <span className="text-gray-500">({percent}%)</span>
-                          </span>
                         </div>
-                      );
-                    });
+
+                        <div className="border-t border-blue-200 mt-3 pt-3">
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium text-gray-700">총 합계</span>
+                            <span className="text-lg font-bold text-blue-600">{formatNumber(total)}개</span>
+                          </div>
+                        </div>
+                      </>
+                    );
                   })()}
-                  <div className="border-t border-blue-200 mt-3 pt-3">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-gray-700">총 합계</span>
-                      <span className="text-lg font-bold text-blue-600">{formatNumber(calculateSizeTotal(selectedPerformance))}개</span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -533,7 +633,40 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
         </div>
       )}
 
-      {/* 삭제 확인 모달 추가 */}
+      {/* 팝업 메뉴 */}
+      {selectedPerformance && showPopup && (
+        <div 
+          className="fixed bg-white shadow-lg rounded-lg z-50 border border-gray-200"
+          style={{
+            left: `${popupPosition.x}px`,
+            top: `${popupPosition.y}px`,
+            transform: 'translateX(-50%)'
+          }}
+        >
+          <div className="flex flex-row gap-1 p-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(selectedPerformance.id);
+                setShowPopup(false);
+              }}
+              className="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              삭제
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 팝업 외부 클릭 시 닫기를 위한 오버레이 */}
+      {showPopup && (
+        <div 
+          className="fixed inset-0 z-40"
+          onClick={() => setShowPopup(false)}
+        />
+      )}
+
+      {/* 삭제 확인 모달은 그대로 유지 */}
       {isDeleteModalOpen && performanceToDelete && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"

@@ -1,32 +1,37 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const cookieStore = cookies();
-    
-    const { data, error } = await supabase
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '0');
+    const size = parseInt(searchParams.get('size') || '12');
+    const searchTerm = searchParams.get('searchTerm') || '';
+    const searchFields = searchParams.get('searchFields')?.split(',') || [];
+
+    let query = supabase
       .from('inventory_history')
-      .select('*')
-      .order('id', { ascending: true });
+      .select('*', { count: 'exact' });
 
-    if (error) {
-      console.error('Supabase 조회 에러:', error);
-      throw error;
+    // 검색어가 있는 경우 (콤마로 구분된 다중 검색어 처리)
+    if (searchTerm && searchFields.length > 0) {
+      const searchTerms = searchTerm.split(',').map(term => term.trim());
+      const conditions = searchTerms.flatMap(term => 
+        searchFields.map(field => `${field}.ilike.%${term}%`)
+      );
+      query = query.or(conditions.join(','));
     }
 
-    if (!data || data.length === 0) {
-      return NextResponse.json({
-        success: true,
-        data: []
-      });
-    }
+    // 페이지네이션 적용
+    const { data, error, count } = await query
+      .order('id', { ascending: true })
+      .range(page * size, (page + 1) * size - 1);
+
+    if (error) throw error;
 
     return NextResponse.json({
       success: true,
-      data: data.map(item => ({
+      data: data?.map(item => ({
         product_code: item.product_code,
         product_name: item.product_name,
         specification: item.specification,
@@ -35,7 +40,11 @@ export async function GET() {
         warehouse_3333: item.warehouse_3333,
         warehouse_12345: item.warehouse_12345,
         updated_at: item.updated_at
-      }))
+      })) || [],
+      totalCount: count || 0,
+      totalPages: count ? Math.ceil(count / size) : 0,
+      currentPage: page,
+      hasMore: count ? (page + 1) * size < count : false
     });
 
   } catch (error) {

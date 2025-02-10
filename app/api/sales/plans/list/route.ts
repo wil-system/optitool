@@ -2,6 +2,7 @@ import { supabase } from '@/utils/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { format } from 'date-fns';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,8 +12,10 @@ export async function GET(request: NextRequest) {
     const searchTerm = searchParams.get('searchTerm') || '';
     
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const kstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const today = format(kstNow, 'yyyy-MM-dd');
     const currentTime = now.toLocaleTimeString('en-US', { 
+      timeZone: 'Asia/Seoul' ,
       hour12: false, 
       hour: '2-digit', 
       minute: '2-digit' 
@@ -30,7 +33,7 @@ export async function GET(request: NextRequest) {
         )
       `, { count: 'exact' })
       .eq('is_active', true)
-      .or(`plan_date.gt.${today},and(plan_date.eq.${today},plan_time.gte.${currentTime})`);
+      .or(`plan_date.gt.${today},and(plan_date.eq.${today},plan_time.gte.${currentTime}),is_undecided.eq.true`);
 
     const { data: plans, error, count } = await query;
 
@@ -100,6 +103,7 @@ export async function POST(request: Request) {
       .insert([{ 
         ...data, 
         is_active: true,
+        is_undecided: data.is_undecided || false,
         created_at: new Date().toISOString()
       }]);
 

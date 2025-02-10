@@ -2,26 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import LoadingSpinner from '@/app/components/common/LoadingSpinner';
-import { format , parseISO } from 'date-fns';
+import { format } from 'date-fns';
+
+interface ISizeData {
+  size: string;
+  quantity: number;
+  percent: number;
+}
 
 interface IOperationalQuantity {
   id: string;
   set_id: string;
   set_name: string;
-  xs_size: number;
-  s_size: number;
-  m_size: number;
-  l_size: number;
-  xl_size: number;
-  xxl_size: number;
-  fourxl_size: number;
-  xs_size_percent: number;
-  s_size_percent: number;
-  m_size_percent: number;
-  l_size_percent: number;
-  xl_size_percent: number;
-  xxl_size_percent: number;
-  fourxl_size_percent: number;
+  sizes: ISizeData[];
   total_quantity: number;
   created_at: string;
 }
@@ -43,7 +36,7 @@ export default function OperationalQuantityListClient() {
       const result = await response.json();
 
       if (!response.ok) throw new Error(result.error || '데이터 조회 실패');
-      setData(result);
+      setData(result.data);
     } catch (err) {
       console.error('데이터 조회 중 오류:', err);
       setError(err instanceof Error ? err.message : '데이터 로딩 중 오류가 발생했습니다.');
@@ -66,7 +59,6 @@ export default function OperationalQuantityListClient() {
         throw new Error(result.error);
       }
 
-      // 성공적으로 삭제되면 목록 새로고침
       fetchData();
       alert('삭제되었습니다.');
     } catch (error) {
@@ -95,13 +87,10 @@ export default function OperationalQuantityListClient() {
             <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               세트품번
             </th>
-            {['XS', 'S', 'M', 'L', 'XL', 'XXL', '4XL'].map(size => (
-              <th key={size} className="px-4 py-4 text-center">
-                <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">{size}</div>
-                <div className="text-[10px] text-gray-400 mt-1">수량 / 아소트</div>
-              </th>
-            ))}
-            <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[800px]">
+              사이즈별 수량
+            </th>
+            <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               총 수량
             </th>
             <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
@@ -111,10 +100,10 @@ export default function OperationalQuantityListClient() {
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {data.map((item) => (
-            <tr key={item.id} className="hover:bg-blue-50 transition-colors duration-150">
+            <tr key={item.id} className="">
               <td className="px-6 py-4">
                 <div className="text-sm text-gray-900">
-                {format(new Date(item.created_at), 'yyyy-MM-dd')}
+                  {format(new Date(item.created_at), 'yyyy-MM-dd')}
                 </div>
               </td>
               <td className="px-6 py-4">
@@ -128,37 +117,33 @@ export default function OperationalQuantityListClient() {
               <td className="px-6 py-4">
                 <div className="text-sm text-gray-600">{item.set_id}</div>
               </td>
-              
-              {/* Size columns */}
-              {[
-                { size: item.xs_size, percent: item.xs_size_percent },
-                { size: item.s_size, percent: item.s_size_percent },
-                { size: item.m_size, percent: item.m_size_percent },
-                { size: item.l_size, percent: item.l_size_percent },
-                { size: item.xl_size, percent: item.xl_size_percent },
-                { size: item.xxl_size, percent: item.xxl_size_percent },
-                { size: item.fourxl_size, percent: item.fourxl_size_percent }
-              ].map((sizeData, index) => (
-                <td key={index} className="px-4 py-4">
-                  <div className="flex flex-col items-center">
-                    <div className={`text-sm font-semibold ${
-                      sizeData.size > 0 ? 'text-blue-600' : 'text-gray-400'
-                    }`}>
-                      {sizeData.size > 0 ? sizeData.size.toLocaleString() : '-'}
-                    </div>
-                    <div className={`text-xs mt-1 ${
-                      sizeData.percent > 0 ? 'text-green-600' : 'text-gray-400'
-                    }`}>
-                      {sizeData.percent > 0 ? `${sizeData.percent}%` : '-'}
-                    </div>
-                  </div>
-                </td>
-              ))}
+              <td className="px-6 py-4">
+                <div className="flex space-x-2 min-w-[800px]">
+                  {item.sizes.map((sizeData, index) => (
+                    <div 
+                      key={index} 
+                      className="flex-1 flex flex-col items-center bg-blue-50 rounded-lg p-2 shadow-sm "
+                    >
+                      <div className="text-lg font-bold text-gray-900 mb-2">
+                        {sizeData.size}
 
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <div className="text-sm font-medium text-gray-700">
+                          {sizeData.quantity.toLocaleString()}
+                        </div>
+                        <div className="text-xs text-blue-600 mt-1">
+                          {sizeData.percent}%
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </td>
               <td className="px-6 py-4">
                 <div className="text-center">
                   <div className="text-sm font-bold text-blue-700">
-                    {item.total_quantity > 0 ? item.total_quantity.toLocaleString() : '-'}
+                    {item.total_quantity.toLocaleString()}
                   </div>
                   <div className="text-xs text-gray-500 mt-1">총계</div>
                 </div>

@@ -9,6 +9,8 @@ export interface IChannelStatistics {
   achievement_rate: number; // 전체 달성률
   share: number; // 점유율
   date: string; // 날짜
+  temperature: number; // 온도 -> 전환율
+  operation_count: number; // 운영횟수 추가
 }
 
 export interface IDailyStatistics {
@@ -29,7 +31,9 @@ export interface IChannelDetailStatistics {
   performance: number; // 실적
   sales_amount: number; // 판매금액
   achievement_rate: number; // 달성률
+  temperature: number; // 온도 -> 전환율
 }
+
 
 export interface IProductStatisticsGroup {
   //세트 테이블 정보
@@ -45,17 +49,18 @@ export interface IProductStatisticsGroup {
 }
 
 export interface IProductStatistics {
-  product_name: string;      // 상품명
-  set_product_code: string;  // 세트품번
-  channel: string;          // 채널
-  channel_detail: string;   // 상세채널
-  category: string;         // 카테고리
-  sales_amount: number;     // 판매금액
-  performance: number;      // 실적
-  target: number;          // 목표
-  achievement_rate: number; // 달성률
-  share: number;           // 점유율
-  temperature: number;     // 온도 추가
+  product_name: string;
+  set_product_code: string;
+  channel: string;
+  channel_detail: string;
+  category: string;
+  sales_amount: number;
+  performance: number;
+  target: number;
+  achievement_rate: number;
+  share: number;
+  temperature: number;
+  operation_count: number; // 운영횟수 추가
 }
 
 // export interface IProductStatistics {
@@ -92,6 +97,8 @@ export interface ICombinedSalesData {
   xl_size: number;
   xxl_size: number;
   fourxl_size: number;
+  operation_count: number; // 운영횟수 추가
+  
 
   // sales_plans 테이블 필드
   sales_plan: {
@@ -133,9 +140,10 @@ export interface ICombinedSalesData {
 } 
 
 export interface IAssortStatistics {
-  product_name: string;      // 상품명
-  set_product_code: string;  // 세트품번
-  // 실제 주문 수량
+  product_name: string;
+  set_product_code: string;
+  temperature: number;
+  operation_count: number; // 방송 횟수 추가
   xs_size: number;
   s_size: number;
   m_size: number;
@@ -143,7 +151,6 @@ export interface IAssortStatistics {
   xl_size: number;
   xxl_size: number;
   fourxl_size: number;
-  // 사이즈별 아소트 (%)
   xs_assort: number;
   s_assort: number;
   m_assort: number;

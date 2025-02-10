@@ -67,6 +67,7 @@ export interface ISalesPlans {
   quantity_composition: string;
   created_at: string;
   updated_at: string;
+  is_undecided: boolean;
 }
 
 // 판매 채널 테이블

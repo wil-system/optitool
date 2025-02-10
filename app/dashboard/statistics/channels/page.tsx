@@ -334,11 +334,20 @@ export default function ChannelStatisticsPage() {
                             <Bar
                               data={{
                                 labels: dailyStats.channels.map(stat => stat.channel_name),
-                                datasets: [{
-                                  label: '판매금액',
-                                  data: dailyStats.channels.map(stat => stat.amount),
-                                  backgroundColor: chartColors,
-                                }]
+                                datasets: [
+                                  {
+                                    label: '판매금액',
+                                    data: dailyStats.channels.map(stat => stat.amount),
+                                    backgroundColor: chartColors.slice(0, dailyStats.channels.length),
+                                    yAxisID: 'y1',
+                                  },
+                                  {
+                                    label: '운영횟수',
+                                    data: dailyStats.channels.map(stat => stat.operation_count),
+                                    backgroundColor: chartColors.slice(dailyStats.channels.length),
+                                    yAxisID: 'y2',
+                                  }
+                                ],
                               }}
                               options={{
                                 responsive: true,
@@ -347,7 +356,28 @@ export default function ChannelStatisticsPage() {
                                   legend: { position: 'top' },
                                   title: {
                                     display: true,
-                                    text: '채널별 판매금액'
+                                    text: '채널별 판매금액 및 운영횟수'
+                                  }
+                                },
+                                scales: {
+                                  y1: {
+                                    type: 'linear',
+                                    position: 'left',
+                                    title: {
+                                      display: true,
+                                      text: '판매금액'
+                                    }
+                                  },
+                                  y2: {
+                                    type: 'linear',
+                                    position: 'right',
+                                    title: {
+                                      display: true,
+                                      text: '운영횟수'
+                                    },
+                                    grid: {
+                                      drawOnChartArea: false
+                                    }
                                   }
                                 }
                               }}
@@ -389,6 +419,9 @@ export default function ChannelStatisticsPage() {
                                 채널상세
                               </th>
                               <th className="w-1/8 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                운영횟수
+                              </th>
+                              <th className="w-1/8 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                                 전체 판매수량
                               </th>
                               <th className="w-1/8 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
@@ -402,6 +435,9 @@ export default function ChannelStatisticsPage() {
                               </th>
                               <th className="w-1/8 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                                 전체 달성률
+                              </th>
+                              <th className="w-1/8 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                전환율
                               </th>
                               <th className="w-1/8 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                                 점유율
@@ -421,6 +457,9 @@ export default function ChannelStatisticsPage() {
                                   {stat.channel_detail || '-'}
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-right">
+                                  {stat.operation_count.toLocaleString()}회
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-right">
                                   {stat.quantity.toLocaleString()}
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-right">
@@ -436,7 +475,11 @@ export default function ChannelStatisticsPage() {
                                   {stat.achievement_rate != null ? stat.achievement_rate.toFixed(1) : '0'}%
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-right">
+                                  {stat.temperature != null ? stat.temperature.toFixed(1) : '0'}%
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-right">
                                   {stat.share != null ? stat.share.toFixed(1) : '0'}%
+
                                 </td>
                               </tr>
                             ))}
@@ -444,6 +487,9 @@ export default function ChannelStatisticsPage() {
                               <tr className="bg-gray-50 font-bold">
                                 <td className="px-4 py-3 whitespace-nowrap" colSpan={2}>
                                   총계
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-right">
+                                  {dailyStats.channels.reduce((sum, stat) => sum + (stat.operation_count || 0), 0).toLocaleString()}회
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-right">
                                   {dailyStats.channels.reduce((sum, stat) => sum + (stat.quantity || 0), 0).toLocaleString()}
@@ -464,9 +510,13 @@ export default function ChannelStatisticsPage() {
                                     return totalTarget > 0 ? ((totalPerformance / totalTarget) * 100).toFixed(1) : '0';
                                   })()}%
                                 </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-right">
+                                  {(dailyStats.channels.reduce((sum, stat) => sum + (stat.temperature || 0), 0) / dailyStats.channels.length).toFixed(1)}%
+                                </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-right">100%</td>
                               </tr>
                             )}
+
                           </tbody>
                         </table>
                       </div>

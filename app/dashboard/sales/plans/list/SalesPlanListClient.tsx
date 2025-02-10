@@ -54,6 +54,8 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
     setId: true
   });
   const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+  const [showPopup, setShowPopup] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -123,19 +125,34 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
     return price.toLocaleString() + '원';
   };
 
-  const handleRowClick = (plan: ISalesPlans) => {
-    setSelectedPlan(selectedPlan?.id === plan.id ? undefined : plan);
+  const handleRowClick = (e: React.MouseEvent, plan: ISalesPlans) => {
+    e.preventDefault();
+    const firstCell = e.currentTarget.firstElementChild as HTMLElement;
+    const firstCellRect = firstCell.getBoundingClientRect();
+    
+    setPopupPosition({
+      x: firstCellRect.left + (firstCellRect.width / 2),
+      y: firstCellRect.top + window.scrollY
+    });
+    
+    if (selectedPlan?.id === plan.id) {
+      setShowPopup(!showPopup);
+    } else {
+      setSelectedPlan(plan);
+      setShowPopup(true);
+    }
   };
 
   const handleEdit = (e: React.MouseEvent, plan: ISalesPlans) => {
     e.stopPropagation();
-    setSelectedPlan(plan);
+    setShowPopup(false);
     setIsEditMode(true);
     setIsRegistrationModalOpen(true);
   };
 
   const handleDelete = async (e: React.MouseEvent, planId: number) => {
     e.stopPropagation();
+    setShowPopup(false);
     if (window.confirm('이 판매계획을 삭제하시겠습니까?')) {
       try {
         const response = await fetch(`/api/sales/plans/${planId}`, {
@@ -147,8 +164,8 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
         }
 
         alert('판매계획이 삭제되었습니다.');
-        fetchData();
         setSelectedPlan(undefined);
+        fetchData();
       } catch (error) {
         console.error('Error:', error);
         alert('삭제 중 오류가 발생했습니다.');
@@ -312,6 +329,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">채널상세</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">카테고리</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품명</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">추가 구성</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">세트품번</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">판매가</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">수수료</th>
@@ -322,40 +340,29 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
                 {filteredPlans.map((plan) => (
                   <tr 
                     key={plan.id} 
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className={`hover:bg-gray-50 cursor-pointer 
+                      ${selectedPlan?.id === plan.id ? 'bg-blue-50' : ''} 
+                      ${plan.is_undecided ? 'text-red-600' : 'text-gray-900'}`}
+                    onClick={(e) => handleRowClick(e, plan)}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.season}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.season}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {format(new Date(plan.plan_date), 'yyyy-MM-dd')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.plan_time?.substring(0, 5)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_code}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel?.channel_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_detail}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.set_info?.set_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.plan_time?.substring(0, 5)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.product_code}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.channel?.channel_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.channel_detail}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.product_category}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.set_info?.set_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.quantity_composition || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {plan.set_info?.set_id || '-'}
                     </td>
-                    
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatPrice(plan.sale_price)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{plan.commission_rate}%</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                      {plan.target_quantity.toLocaleString()}
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">{formatPrice(plan.sale_price)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">{plan.commission_rate}%</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                      <button
-                        onClick={(e) => handleEdit(e, plan)}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mr-2"
-                      >
-                        수정
-                      </button>
-                      <button
-                        onClick={(e) => handleDelete(e, plan.id)}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                      >
-                        삭제
-                      </button>
+                      {plan.target_quantity.toLocaleString()}
                     </td>
                   </tr>
                 ))}
@@ -399,6 +406,39 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
           categories={categories}
           setIds={sets}
           editData={isEditMode ? selectedPlan : undefined}
+        />
+      )}
+
+      {selectedPlan && showPopup && (
+        <div 
+          className="fixed bg-white shadow-lg rounded-lg z-50 border border-gray-200"
+          style={{
+            left: `${popupPosition.x}px`,
+            top: `${popupPosition.y}px`,
+            transform: 'translateX(-50%)'
+          }}
+        >
+          <div className="flex flex-row gap-1 p-1">
+            <button
+              onClick={(e) => handleEdit(e, selectedPlan)}
+              className="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              수정
+            </button>
+            <button
+              onClick={(e) => handleDelete(e, selectedPlan.id)}
+              className="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              삭제
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showPopup && (
+        <div 
+          className="fixed inset-0 z-40"
+          onClick={() => setShowPopup(false)}
         />
       )}
     </DashboardLayout>

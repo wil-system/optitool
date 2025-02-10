@@ -44,9 +44,10 @@ interface FormData {
   xl105: number;
   xxl110: number;
   xxxl120: number;
+  usOrder: number;
 }
 
-export default function SalesPlanListClient() {
+export default function SalesPerformanceClient() {
   const itemsPerPage = 10;
   
   const [data, setData] = useState<ISalesPlans[]>([]);
@@ -67,7 +68,8 @@ export default function SalesPlanListClient() {
     l100: 0,
     xl105: 0,
     xxl110: 0,
-    xxxl120: 0
+    xxxl120: 0,
+    usOrder: 0
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<ISalesPlans[]>([]);
@@ -86,6 +88,8 @@ export default function SalesPlanListClient() {
   const [channels, setChannels] = useState<IChannel[]>([]);
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [totalPages, setTotalPages] = useState(1);
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
 
   const fetchData = async (page = 1) => {
     try {
@@ -149,7 +153,7 @@ export default function SalesPlanListClient() {
 
   const getTotalSum = () => {
     return formData.xs85 + formData.s90 + formData.m95 + formData.l100 + 
-           formData.xl105 + formData.xxl110 + formData.xxxl120;
+           formData.xl105 + formData.xxl110 + formData.xxxl120 + formData.usOrder;
   };
 
   useEffect(() => {
@@ -160,7 +164,7 @@ export default function SalesPlanListClient() {
       achievementRate: selectedPlan ? Number(((totalSum / selectedPlan.target_quantity) * 100).toFixed(2)) : 0
     }));
   }, [formData.xs85, formData.s90, formData.m95, formData.l100, 
-      formData.xl105, formData.xxl110, formData.xxxl120, selectedPlan]);
+      formData.xl105, formData.xxl110, formData.xxxl120, formData.usOrder, selectedPlan]);
 
   if (loading) {
     return (
@@ -254,8 +258,22 @@ export default function SalesPlanListClient() {
     }
   };
 
-  const handleRowClick = (plan: ISalesPlans) => {
-    setSelectedRowId(Number(plan.id) === selectedRowId ? null : Number(plan.id));
+  const handleRowClick = (e: React.MouseEvent, plan: ISalesPlans) => {
+    e.preventDefault();
+    const firstCell = e.currentTarget.firstElementChild as HTMLElement;
+    const firstCellRect = firstCell.getBoundingClientRect();
+    
+    setPopupPosition({
+      x: firstCellRect.left + (firstCellRect.width / 2),
+      y: firstCellRect.top + window.scrollY
+    });
+    
+    if (selectedPlan?.id === plan.id) {
+      setShowPopup(!showPopup);
+    } else {
+      setSelectedPlan(plan);
+      setShowPopup(true);
+    }
   };
 
   const handleRegisterClick = (plan: ISalesPlans, e: React.MouseEvent) => {
@@ -271,7 +289,8 @@ export default function SalesPlanListClient() {
       l100: 0,
       xl105: 0,
       xxl110: 0,
-      xxxl120: 0
+      xxxl120: 0,
+      usOrder: 0
     });
     setIsModalOpen(true);
   };
@@ -289,8 +308,18 @@ export default function SalesPlanListClient() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...formData,
-          salesPlanId: String(selectedPlan.id)
+          salesPlanId: String(selectedPlan.id),
+          performance: formData.performance,
+          achievementRate: formData.achievementRate,
+          temperature: formData.temperature,
+          xs_size: formData.xs85,
+          s_size: formData.s90,
+          m_size: formData.m95,
+          l_size: formData.l100,
+          xl_size: formData.xl105,
+          xxl_size: formData.xxl110,
+          fourxl_size: formData.xxxl120,
+          usOrder: formData.usOrder
         })
       });
 
@@ -357,7 +386,7 @@ export default function SalesPlanListClient() {
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6 flex justify-between items-center border-b border-gray-200">
             <h3 className="text-lg leading-6 font-medium text-gray-900">
-              판매실적 등록
+              판매실적 목록
             </h3>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
@@ -444,7 +473,6 @@ export default function SalesPlanListClient() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">운영시즌</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">일자</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
@@ -453,6 +481,7 @@ export default function SalesPlanListClient() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">채널상세</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">카테고리</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품명</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">추가 구성</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">세트품번</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">판매가</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">수수료</th>
@@ -461,29 +490,28 @@ export default function SalesPlanListClient() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {currentItems.map((plan) => (
-                  <tr key={plan.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                      <button
-                        onClick={(e) => handleRegisterClick(plan, e)}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        등록
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.season}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <tr 
+                    key={plan.id}
+                    className={`hover:bg-gray-50 cursor-pointer 
+                      ${selectedPlan?.id === plan.id ? 'bg-blue-50' : ''} 
+                      ${plan.is_undecided ? 'text-red-600' : 'text-gray-900'}`}
+                    onClick={(e) => handleRowClick(e, plan)}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.season}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {format(new Date(plan.plan_date), 'yyyy-MM-dd')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.plan_time?.substring(0, 5)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_code}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.channel_detail}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.product_category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.set_info?.set_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{plan.set_info?.set_id || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatPrice(plan.sale_price)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{plan.commission_rate}%</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.plan_time?.substring(0, 5)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.product_code}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.channel_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.channel_detail}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.product_category}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.set_info?.set_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.quantity_composition || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.set_info?.set_id || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">{formatPrice(plan.sale_price)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">{plan.commission_rate}%</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                       {plan.target_quantity.toLocaleString()}개
                     </td>
                   </tr>
@@ -492,8 +520,35 @@ export default function SalesPlanListClient() {
             </table>
           </div>
 
+          {selectedPlan && showPopup && (
+            <div 
+              className="fixed bg-white shadow-lg rounded-lg z-50 border border-gray-200"
+              style={{
+                left: `${popupPosition.x}px`,
+                top: `${popupPosition.y}px`,
+                transform: 'translateX(-50%)'
+              }}
+            >
+              <div className="flex flex-row gap-1 p-1">
+                <button
+                  onClick={(e) => handleRegisterClick(selectedPlan, e)}
+                  className="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  등록
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showPopup && (
+            <div 
+              className="fixed inset-0 z-40"
+              onClick={() => setShowPopup(false)}
+            />
+          )}
+
           <div className="bg-white px-4 py-3 flex items-center justify-center border-t border-gray-200 sm:px-6">
-            <div className="mt-4 flex justify-center items-center">
+            <div className="flex justify-center items-center">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
@@ -518,7 +573,7 @@ export default function SalesPlanListClient() {
         </div>
       </div>
 
-      {isModalOpen && (
+      {isModalOpen && selectedPlan && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 transition-opacity" aria-hidden="true">
@@ -560,7 +615,7 @@ export default function SalesPlanListClient() {
                             />
                           </div>
                           <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
-                            <label className="block text-sm font-medium text-gray-700 mb-1 text-center">당일온도 (C)</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1 text-center">전환율 (%)</label>
                             <input
                               type="number"
                               step="0.1"
@@ -594,6 +649,21 @@ export default function SalesPlanListClient() {
                               />
                             </div>
                           ))}
+                        </div>
+                      </div>
+
+                      <div className="bg-yellow-100 p-6 rounded-lg border-2 border-yellow-200 shadow">
+             
+                        <div className="flex justify-center">
+                          <div className="w-48 bg-white p-3 rounded-md border-2 border-gray-300 shadow">
+                            <label className="block text-xs font-medium text-gray-700 mb-1 text-center">미주 주문량</label>
+                            <input
+                              type="number"
+                              className="block w-full rounded-md border-2 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-center"
+                              value={formData.usOrder || ''}
+                              onChange={(e) => setFormData({...formData, usOrder: Number(e.target.value)})}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>

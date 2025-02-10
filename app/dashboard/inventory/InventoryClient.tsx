@@ -36,6 +36,9 @@ export default function InventoryClient() {
   });
 
   const [lastSyncDate, setLastSyncDate] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
 
   // 컴포넌트 마운트 시 localStorage에서 값 불러오기
   useEffect(() => {
@@ -50,7 +53,7 @@ export default function InventoryClient() {
     const fetchInventoryHistory = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/inventory/history');
+        const response = await fetch(`/api/inventory/history?page=${page}&size=12`);
         const result = await response.json();
 
         if (!result.success) {
@@ -59,6 +62,8 @@ export default function InventoryClient() {
 
         setData(result.data);
         setFilteredData(result.data);
+        setTotalPages(result.totalPages);
+        setHasMore(result.hasMore);
         
         // 첫 번째 아이템의 업데이트 날짜를 마지막 동기화 날짜로 설정
         if (result.data && result.data.length > 0) {
@@ -73,7 +78,7 @@ export default function InventoryClient() {
     };
 
     fetchInventoryHistory();
-  }, []);
+  }, [page]);
 
   const fetchData = async () => {
     try {
@@ -160,25 +165,70 @@ export default function InventoryClient() {
   };
 
   // 검색 실행 함수
-  const handleSearch = () => {
-    const filtered = data.filter(item => {
-      if (!searchTerm) return true;
+  const handleSearch = async () => {
+    try {
+      setLoading(true);
+      // 검색 시 페이지를 0으로 리셋
+      setPage(0);
       
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        (searchFields.product_code && item.product_code.toLowerCase().includes(searchLower)) ||
-        (searchFields.product_name && item.product_name.toLowerCase().includes(searchLower))
+      const selectedFields = [];
+      if (searchFields.product_code) selectedFields.push('product_code');
+      if (searchFields.product_name) selectedFields.push('product_name');
+
+      const response = await fetch(
+        `/api/inventory/history?page=0&size=12&searchTerm=${searchTerm}&searchFields=${selectedFields.join(',')}`
       );
-    });
-    setFilteredData(filtered);
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      setData(result.data);
+      setFilteredData(result.data);
+      setTotalPages(result.totalPages);
+      setHasMore(result.hasMore);
+    } catch (err) {
+      console.error('검색 에러:', err);
+      setError(err instanceof Error ? err.message : '검색 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Enter 키 이벤트 처리
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSearch();
-    }
+  // 페이지 변경 핸들러 수정
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    // 페이지 변경 시 현재 검색 조건 유지
+    const selectedFields: string[] = [];
+    if (searchFields.product_code) selectedFields.push('product_code');
+    if (searchFields.product_name) selectedFields.push('product_name');
+
+    const fetchPageData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(
+          `/api/inventory/history?page=${newPage}&size=12&searchTerm=${searchTerm}&searchFields=${selectedFields.join(',')}`
+        );
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+
+        setData(result.data);
+        setFilteredData(result.data);
+        setTotalPages(result.totalPages);
+        setHasMore(result.hasMore);
+      } catch (err) {
+        console.error('페이지 변경 에러:', err);
+        setError(err instanceof Error ? err.message : '데이터 로딩 중 오류가 발생했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPageData();
   };
 
   if (loading) return <LoadingSpinner />;
@@ -270,7 +320,6 @@ export default function InventoryClient() {
                   className="pl-10 pr-4 py-2 border rounded-lg w-80"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={handleKeyPress}
                 />
                 <div className="absolute left-3 top-2.5">
                   <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -296,6 +345,30 @@ export default function InventoryClient() {
       ) : !loading && (
         <div className="text-center text-gray-500 mt-8">
           데이터를 가져오려면 상단의 버튼을 클릭하세요.
+        </div>
+      )}
+
+      {data.length > 0 && (
+        <div className="mt-4 flex justify-center">
+          <nav className="flex items-center gap-2">
+            <button
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page === 0}
+              className="px-3 py-1 rounded border disabled:opacity-50"
+            >
+              이전
+            </button>
+            <span className="mx-2">
+              {page + 1} / {totalPages}
+            </span>
+            <button
+              onClick={() => handlePageChange(page + 1)}
+              disabled={!hasMore}
+              className="px-3 py-1 rounded border disabled:opacity-50"
+            >
+              다음
+            </button>
+          </nav>
         </div>
       )}
     </div>

@@ -7,8 +7,24 @@ export async function POST(request: Request) {
     const {
       setId,
       setName,
-      assortments,
-      calculatedQuantities,
+      size_1,
+      size_2,
+      size_3,
+      size_4,
+      size_5,
+      size_6,
+      size_7,
+      size_8,
+      size_9,
+      size_percent_1,
+      size_percent_2,
+      size_percent_3,
+      size_percent_4,
+      size_percent_5,
+      size_percent_6,
+      size_percent_7,
+      size_percent_8,
+      size_percent_9,
       totalQuantity
     } = body;
 
@@ -17,23 +33,24 @@ export async function POST(request: Request) {
       .insert({
         set_id: setId,
         set_name: setName,
-        // 사이즈별 운영 가능 재고
-        xs_size: calculatedQuantities.xs_size || 0,
-        s_size: calculatedQuantities.s_size || 0,
-        m_size: calculatedQuantities.m_size || 0,
-        l_size: calculatedQuantities.l_size || 0,
-        xl_size: calculatedQuantities.xl_size || 0,
-        xxl_size: calculatedQuantities.xxl_size || 0,
-        fourxl_size: calculatedQuantities.fourxl_size || 0,
-        // 사이즈별 아소트 퍼센트
-        xs_size_percent: assortments.xs_size || 0,
-        s_size_percent: assortments.s_size || 0,
-        m_size_percent: assortments.m_size || 0,
-        l_size_percent: assortments.l_size || 0,
-        xl_size_percent: assortments.xl_size || 0,
-        xxl_size_percent: assortments.xxl_size || 0,
-        fourxl_size_percent: assortments.fourxl_size || 0,
-        // 총 수량
+        size_1: size_1 || null,
+        size_2: size_2 || null,
+        size_3: size_3 || null,
+        size_4: size_4 || null,
+        size_5: size_5 || null,
+        size_6: size_6 || null,
+        size_7: size_7 || null,
+        size_8: size_8 || null,
+        size_9: size_9 || null,
+        size_percent_1: size_percent_1 || null,
+        size_percent_2: size_percent_2 || null,
+        size_percent_3: size_percent_3 || null,
+        size_percent_4: size_percent_4 || null,
+        size_percent_5: size_percent_5 || null,
+        size_percent_6: size_percent_6 || null,
+        size_percent_7: size_percent_7 || null,
+        size_percent_8: size_percent_8 || null,
+        size_percent_9: size_percent_9 || null,
         total_quantity: totalQuantity
       })
       .select();

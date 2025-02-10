@@ -125,9 +125,9 @@ export async function GET(request: Request) {
       )
     `)
     .eq('is_active', true)
-    .eq('sales_plans.is_active', true)
-    .eq('sales_plans.set_products.is_active', true)
-    .eq('sales_plans.sales_channels.is_active', true);
+    .eq('sales_plans.is_active', true);
+    //.eq('sales_plans.set_products.is_active', true);
+    //.eq('sales_plans.sales_channels.is_active', true);
 
     if (startDate) {
       const startDateTime = new Date(startDate);
@@ -196,6 +196,7 @@ export async function GET(request: Request) {
         // 개별 상품 ID들을 배열로 변환
         acc[groupKey][planId] = {
           id: curr.id,
+          operation_count: 1,
           sales_plan_id: curr.sales_plan_id,
           performance: curr.performance,
           achievement_rate: curr.achievement_rate,
@@ -273,7 +274,8 @@ const result = Object.entries(groupedStats).map(([date, planData]) => {
       target: plan.sales_plan.target_quantity,
       achievement_rate: plan.achievement_rate,
       share: 0,
-      temperature: plan.temperature || 0
+      temperature: plan.temperature || 0,
+      operation_count: 1
     } as IProductStatistics;
   }).reduce((acc, curr) => {
     const key = `${curr.set_product_code}`;
@@ -284,10 +286,11 @@ const result = Object.entries(groupedStats).map(([date, planData]) => {
       acc[key].sales_amount += curr.sales_amount;
       acc[key].performance += curr.performance;
       acc[key].target += curr.target;
+      acc[key].operation_count += 1;
       // 달성률 재계산
       acc[key].achievement_rate = (acc[key].performance / acc[key].target) * 100;
-      // 온도 평균 계산 (단순 평균)
-      acc[key].temperature = (acc[key].temperature + curr.temperature) / 2;
+      // 온도 평균 계산 (운영횟수로 나누어 평균 계산)
+      acc[key].temperature = ((acc[key].temperature * (acc[key].operation_count - 1) + curr.temperature) / acc[key].operation_count);
     }
     return acc;
   }, {} as Record<string, IProductStatistics>);

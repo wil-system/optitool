@@ -21,7 +21,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <nav className="mt-2">
             <ul className="space-y-1">
               <li className="px-3 py-2 hover:bg-gray-100">
-                <Link href="/">대시보드</Link>
+                <Link href="/">방송 일정</Link>
               </li>
               <li className="px-3 py-2">
                 <div>

@@ -121,6 +121,7 @@ export default function AssortStatisticsPage() {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">상품명</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">세트품번</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">운영횟수</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">XS</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">S</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">M</th>
@@ -128,6 +129,7 @@ export default function AssortStatisticsPage() {
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">XL</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">XXL</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">4XL</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">전환율</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">총 주문수량</th>
             </tr>
           </thead>
@@ -138,6 +140,7 @@ export default function AssortStatisticsPage() {
                 <tr key={index}>
                   <td className="px-6 py-4 whitespace-nowrap">{product.product_name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">{product.set_product_code}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">{product.operation_count}회</td>
                   <td className={`px-6 py-4 whitespace-nowrap text-right ${getAssortColor(product.xs_assort, max, min)}`}>
                     {product.xs_size?.toLocaleString()} ({product.xs_assort}%)
                   </td>
@@ -160,6 +163,9 @@ export default function AssortStatisticsPage() {
                     {product.fourxl_size?.toLocaleString()} ({product.fourxl_assort}%)
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right font-bold">
+                    {product.temperature?.toLocaleString()}%
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right font-bold">
                     {product.total_order.toLocaleString()}
                   </td>
                 </tr>
@@ -168,7 +174,12 @@ export default function AssortStatisticsPage() {
             {/* 총계 행 - 데이터가 2개 이상일 때만 표시 */}
             {showTotals && (
               <tr className="bg-gray-50 font-bold">
-                <td className="px-6 py-4 whitespace-nowrap" colSpan={2}>총계</td>
+                <td className="px-6 py-4 whitespace-nowrap">총계</td>
+               
+                <td className="px-6 py-4 whitespace-nowrap text-right">-</td>
+                <td className="px-6 py-4 whitespace-nowrap text-right">
+                  {products.reduce((sum, p) => sum + p.operation_count, 0)}회
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">
                   {(() => {
                     const total = products.reduce((sum, p) => sum + (p.xs_size || 0), 0);
@@ -216,6 +227,12 @@ export default function AssortStatisticsPage() {
                     const total = products.reduce((sum, p) => sum + (p.fourxl_size || 0), 0);
                     const percentage = (total / grandTotal * 100).toFixed(1);
                     return `${total.toLocaleString()} (${percentage}%)`;
+                  })()}
+                </td>
+                <td className="px-5 py-4 whitespace-nowrap text-right">
+                  {(() => {
+                    const total = products.reduce((sum, p) => sum + (p.temperature || 0), 0);
+                    return `${(total / products.length).toFixed(1)}%`;
                   })()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import LoadingSpinner from '@/app/components/common/LoadingSpinner';
+
 
 interface ScheduleItem {
   id: string;
@@ -19,7 +20,9 @@ interface SalesPlan {
   product_name: string;
   target_quantity: number;
   set_name: string;
+  quantity_composition: string;
 }
+
 
 interface DaySchedule {
   date: number;
@@ -161,6 +164,100 @@ export default function SchedulePage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [salesPlans, setSalesPlans] = useState<SalesPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewType, setViewType] = useState<'internal' | 'external'>('external');
+  const [hideEmptySlots, setHideEmptySlots] = useState(true);
+
+  // 시간대 생성 로직 수정
+  const timeSlots = useMemo(() => {
+    return Array.from({ length: 24 }, (_, i) => {
+      const hour = i;
+      return `${hour.toString().padStart(2, '0')}:30`;
+    });
+  }, []);
+
+  // 현재 월의 날짜 배열 생성
+  const getDaysInMonth = useMemo(() => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    
+    return Array.from({ length: lastDay }, (_, i) => {
+      const date = new Date(year, month, i + 1);
+      // 한국 시간대로 날짜 포맷팅
+      const fullDate = date.toLocaleDateString('fr-CA', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'Asia/Seoul'
+      });
+      
+      return {
+        date: i + 1,
+        day: ['일', '월', '화', '수', '목', '금', '토'][date.getDay()],
+        fullDate: fullDate
+      };
+    });
+  }, [currentDate]);
+
+  // 날짜별 데이터 그룹화
+  const groupedByDate = useMemo(() => {
+    const result: { [key: string]: SalesPlan[] } = {};
+    
+    getDaysInMonth.forEach(({ fullDate }) => {
+      result[fullDate] = [];
+    });
+
+    salesPlans.forEach(plan => {
+      if (result[plan.plan_date]) {
+        result[plan.plan_date].push(plan);
+      }
+    });
+
+    return result;
+  }, [salesPlans, getDaysInMonth]);
+
+  // 채널별 방송 횟수 계산
+  const broadcastCounts = useMemo(() => {
+    const counts: { [key: string]: number } = {};
+    salesPlans.forEach(plan => {
+      const channel = plan.channel_name;
+      counts[channel] = (counts[channel] || 0) + 1;
+    });
+    return counts;
+  }, [salesPlans]);
+
+  // timeSlots를 필터링하는 함수 수정
+  const getActiveTimeSlots = useMemo(() => {
+    const activeTimes = new Set<string>();
+    
+    // 모든 판매계획의 시간을 확인
+    salesPlans.forEach(plan => {
+      const planTime = plan.plan_time.substring(0, 5);
+      const [hour, minute] = planTime.split(':').map(Number);
+      
+      // 해당 시간의 이전 30분 슬롯을 활성화
+      const slotHour = minute < 30 ? 
+        (hour === 0 ? 23 : hour - 1) : 
+        hour;
+      const slotTime = `${slotHour.toString().padStart(2, '0')}:30`;
+      activeTimes.add(slotTime);
+    });
+    
+    // 활성화된 시간대만 필터링하여 정렬된 배열 반환
+    return timeSlots
+      .filter(time => activeTimes.has(time))
+      .sort((a, b) => {
+        const [hourA] = a.split(':').map(Number);
+        const [hourB] = b.split(':').map(Number);
+        return hourA - hourB;
+      });
+  }, [salesPlans, timeSlots]);
+
+  // timeSlots 계산 로직 수정
+  const displayTimeSlots = useMemo(() => {
+    if (!hideEmptySlots) return timeSlots;
+    return getActiveTimeSlots;
+  }, [hideEmptySlots, timeSlots, getActiveTimeSlots]);
 
   useEffect(() => {
     const fetchSalesPlans = async () => {
@@ -252,6 +349,27 @@ export default function SchedulePage() {
     }
   };
 
+  useEffect(() => {
+    const topScroll = document.querySelector('.overflow-x-scroll:first-child');
+    const bottomScroll = document.querySelector('.overflow-x-scroll:last-child');
+    
+    if (topScroll && bottomScroll) {
+      const handleScroll = (e: Event) => {
+        const source = e.target as HTMLElement;
+        const target = source === topScroll ? bottomScroll : topScroll;
+        target.scrollLeft = source.scrollLeft;
+      };
+      
+      topScroll.addEventListener('scroll', handleScroll);
+      bottomScroll.addEventListener('scroll', handleScroll);
+      
+      return () => {
+        topScroll.removeEventListener('scroll', handleScroll);
+        bottomScroll.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, []);
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -291,76 +409,264 @@ export default function SchedulePage() {
           </div>
         </div>
 
-        <div className="mb-4 flex justify-between items-center">
-          <div className="flex gap-2">
-
-          </div>
-
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setViewType('external')}
+            className={`px-4 py-2 rounded-lg ${
+              viewType === 'external' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-100 text-gray-700'
+            }`}
+          >
+            외부 공유용
+          </button>
+          <button
+            onClick={() => setViewType('internal')}
+            className={`px-4 py-2 rounded-lg ${
+              viewType === 'internal' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-100 text-gray-700'
+            }`}
+          >
+            내부 공유용
+          </button>
         </div>
 
-        <div className="grid grid-cols-7 gap-1">
-          {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
-            <div key={day} className="p-2 text-center font-medium bg-gray-50">
-              {day}
-            </div>
-          ))}
-          
-          {generateCalendarDays().map((day, index) => {
-            const today = new Date();
-            const koreaToday = new Date(today.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-            
-            // 날짜, 월, 연도가 모두 일치하는지 확인
-            const isToday = 
-              koreaToday.getDate() === day.date && 
-              koreaToday.getMonth() === day.month && 
-              koreaToday.getFullYear() === day.year;
-
-            return (
-              <div 
-                key={index}
-                className={`min-h-[120px] p-2 border ${
-                  isToday 
-                    ? 'border-blue-300 border-[1.5px] bg-blue-50/50' 
-                    : 'border-gray-200'
-                }`}
-              >
-                <div className={`text-sm mb-1 ${
-                  isToday 
-                    ? 'font-semibold text-blue-500' 
-                    : ''
-                }`}>
-                  {day.date}
+        {viewType === 'external' ? (
+          <div>
+            <div className="grid grid-cols-7 gap-1">
+              {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
+                <div key={day} className="p-2 text-center font-medium bg-gray-50">
+                  {day}
                 </div>
-                <div className="space-y-1">
-                  {day.salesPlans && day.salesPlans.map((plan) => (
-                    <div
-                      key={plan.id}
-                      className={`text-xs p-1 rounded ${getChannelColor(plan.channel_name)}`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <span>{plan.plan_time.substring(0, 5)}</span>
-                        <span className="font-medium">{plan.channel_name}</span>
-                      </div>
-                      <div className="text-xs">{plan.set_name}</div>
+              ))}
+              
+              {generateCalendarDays().map((day, index) => {
+                const today = new Date();
+                const koreaToday = new Date(today.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+                
+                // 날짜, 월, 연도가 모두 일치하는지 확인
+                const isToday = 
+                  koreaToday.getDate() === day.date && 
+                  koreaToday.getMonth() === day.month && 
+                  koreaToday.getFullYear() === day.year;
+
+                return (
+                  <div 
+                    key={index}
+                    className={`min-h-[120px] p-2 border ${
+                      isToday 
+                        ? 'border-blue-300 border-[1.5px] bg-blue-50/50' 
+                        : 'border-gray-200'
+                    }`}
+                  >
+                    <div className={`text-sm mb-1 ${
+                      isToday 
+                        ? 'font-semibold text-blue-500' 
+                        : ''
+                    }`}>
+                      {day.date}
                     </div>
-                  ))}
+                    <div className="space-y-1">
+                      {day.salesPlans && day.salesPlans.map((plan) => (
+                        <div
+                          key={plan.id}
+                          className={`text-xs p-1 rounded ${getChannelColor(plan.channel_name)}`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span>{plan.plan_time.substring(0, 5)}</span>
+                            <span className="font-medium">{plan.channel_name}</span>
+                          </div>
+                          <div className="text-xs">{plan.quantity_composition ? plan.set_name + ' + ' + plan.quantity_composition : plan.set_name}</div>
+                        </div>
+
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <ScheduleModal
+              isOpen={isModalOpen}
+              onClose={() => {
+                setIsModalOpen(false);
+                setSelectedSchedule(null);
+              }}
+              schedule={selectedSchedule || undefined}
+              onSave={handleSaveSchedule}
+              onDelete={handleDeleteSchedule}
+            />
+          </div>
+        ) : (
+          <div className="mt-4">
+            {/* 채널별 방송 횟수 헤더 영역 수정 */}
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-lg font-semibold">채널별 방송 횟수</h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="hideEmptySlots"
+                    checked={hideEmptySlots}
+                    onChange={(e) => setHideEmptySlots(e.target.checked)}
+                    className="rounded"
+                  />
+                  <label htmlFor="hideEmptySlots" className="text-sm text-gray-600">
+                    빈 시간대 숨기기
+                  </label>
                 </div>
               </div>
-            );
-          })}
-        </div>
+              <div className="flex gap-4 flex-wrap">
+                {Object.entries(broadcastCounts).map(([channel, count]) => (
+                  <div 
+                    key={channel} 
+                    className={`px-3 py-2 rounded-lg shadow ${getChannelColor(channel)}`}
+                  >
+                    <span className="font-medium">{channel}</span>
+                    <span className="ml-2">{count}회</span>
+                  </div>
+                ))}
+                {/* 방송 합계 추가 */}
+                <div className="px-3 py-2 rounded-lg shadow bg-red-200">
+                  <span className="font-medium">방송합계</span>
+                  <span className="ml-2">
+                    {Object.values(broadcastCounts).reduce((sum, count) => sum + count, 0)}회
+                  </span>
+                </div>
+              </div>
+            </div>
 
-        <ScheduleModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedSchedule(null);
-          }}
-          schedule={selectedSchedule || undefined}
-          onSave={handleSaveSchedule}
-          onDelete={handleDeleteSchedule}
-        />
+            {/* 시간표 부분 수정 */}
+            <div className="flex flex-col gap-0">
+              {/* 상단 스크롤바 */}
+              <div className="overflow-x-scroll">
+                <div className="min-w-full" style={{ height: '6px' }} />
+              </div>
+              
+              {/* 테이블 */}
+              <div className="overflow-x-scroll scrollbar-sync">
+                <table className="min-w-full border border-gray-200 table-fixed">
+                  <thead className="sticky top-0 z-20 overflow-visible">
+                    <tr>
+                      <th className="w-16 border bg-gray-50 p-1 sticky left-0 z-30">시간</th>
+
+                      {getDaysInMonth.map(({ date, day }) => (
+                        <th 
+                          key={date} 
+                          className={`border p-1 min-w-[120px] sticky top-0 z-20 ${
+                            day === '토' ? 'bg-orange-50' : 
+                            day === '일' ? 'bg-red-50' : 
+                            'bg-gray-50'
+                          }`}
+                        >
+                          <div className={`text-xs font-medium ${
+                            day === '토' ? 'text-orange-700' : 
+                            day === '일' ? 'text-red-700' : 
+                            ''
+                          }`}>
+                            {date}일 ({day})
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayTimeSlots.map(time => {
+                      const [currentHour] = time.split(':').map(Number);
+                      const nextHour = (currentHour + 1) % 24;
+                      const timeRangeDisplay = `${time} ~ ${nextHour.toString().padStart(2, '0')}:30`;
+                      
+                      return (
+                        <tr key={time}>
+                          <td className="border bg-gray-50 p-1 text-xs sticky left-0 z-10">
+                            {timeRangeDisplay}
+                          </td>
+                          {getDaysInMonth.map(({ fullDate, day }) => {
+                            const weekendBg = day === '토' ? 'bg-orange-50/30' : 
+                                             day === '일' ? 'bg-red-50/30' : '';
+                            
+                            return (
+                              <td 
+                                key={`${fullDate}-${time}`} 
+                                className={`border p-1 relative ${weekendBg}`}
+                                style={{
+                                  backgroundColor: day === '토' ? 'rgb(255 237 213 / 0.3)' : 
+                                                 day === '일' ? 'rgb(254 226 226 / 0.3)' : 
+                                                 undefined
+                                }}
+                              >
+                                {groupedByDate[fullDate]
+                                  ?.filter(plan => {
+                                    const planTime = plan.plan_time.substring(0, 5);
+                                    const [planHour, planMinute] = planTime.split(':').map(Number);
+                                    const [slotHour] = time.split(':').map(Number);
+                                    
+                                    // 현재 슬롯 시간대(30분)부터 다음 슬롯 시간대(30분) 사이의 데이터
+                                    const nextSlotHour = (slotHour + 1) % 24;
+                                    
+                                    if (planHour === slotHour) {
+                                      return planMinute >= 30;
+                                    } else if (planHour === nextSlotHour) {
+                                      return planMinute < 30;
+                                    }
+                                    return false;
+                                  })
+                                  .map(plan => (
+                                    <div
+                                      key={plan.id}
+                                      className={`text-[10px] p-0.5 rounded mb-0.5 ${getChannelColor(plan.channel_name)}`}
+                                    >
+                                      <div className="flex justify-between items-center whitespace-nowrap">
+                                        <span className="font-medium truncate max-w-[70%]">{plan.channel_name}</span>
+                                        <span className="text-gray-500 ml-1">{plan.plan_time.substring(0, 5)}</span>
+                                      </div>
+                                      <div className="truncate">{plan.set_name}</div>
+                                      {plan.quantity_composition && (
+                                        <div className="text-[9px] text-gray-500 truncate">
+                                          + {plan.quantity_composition}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      <style jsx>{`
+        .scrollbar-sync {
+          scrollbar-gutter: stable;
+        }
+        
+        /* 스크롤바 동기화를 위한 스타일 */
+        .overflow-x-scroll {
+          scrollbar-width: auto;
+          scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+        }
+        
+        .overflow-x-scroll::-webkit-scrollbar {
+          height: 6px;
+        }
+        
+        .overflow-x-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        .overflow-x-scroll::-webkit-scrollbar-thumb {
+          background-color: rgba(156, 163, 175, 0.5);
+          border-radius: 3px;
+        }
+      `}</style>
     </DashboardLayout>
   );
 } 

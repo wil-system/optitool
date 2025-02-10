@@ -9,8 +9,10 @@ interface ISalesCalendarResponse {
   product_name: string;
   product_category: string;
   target_quantity: number;
+  quantity_composition: string;
   sale_price: number;
   commission_rate: number;
+
   sales_channels?: {
     channel_name: string;
   };
@@ -28,9 +30,11 @@ interface IFormattedSalesPlan {
   product_name: string;
   product_category: string;
   target_quantity: number;
+  quantity_composition: string;
   sale_price: number;
   commission_rate: number;
   set_name: string;
+
 }
 
 export async function GET(request: NextRequest) {
@@ -61,11 +65,13 @@ export async function GET(request: NextRequest) {
         product_name,
         product_category,
         target_quantity,
+        quantity_composition,
         sale_price,
         commission_rate,
         sales_channels (
           channel_name
         ),
+
         set_products (
           set_name
         )
@@ -87,7 +93,9 @@ export async function GET(request: NextRequest) {
       product_name: plan.product_name,
       product_category: plan.product_category,
       target_quantity: plan.target_quantity,
+      quantity_composition: plan.quantity_composition,
       sale_price: plan.sale_price,
+
       commission_rate: plan.commission_rate,
       set_name: plan.set_products?.set_name || ''
     }));

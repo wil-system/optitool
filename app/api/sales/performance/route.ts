@@ -33,6 +33,7 @@ export async function GET(request: Request) {
         `and(plan_date.eq.${today},plan_time.lt.${currentTime})`
       )
       .eq('is_active', true)
+      .eq('is_undecided', false)
       .not('id', 'in', `(${registeredPlanIds.join(',')})`)
       .order('plan_date', { ascending: false })
       .order('plan_time', { ascending: false })
@@ -89,13 +90,14 @@ export async function POST(request: Request) {
       performance,
       achievementRate,
       temperature,
-      xs85,
-      s90,
-      m95,
-      l100,
-      xl105,
-      xxl110,
-      xxxl120
+      xs_size,
+      s_size,
+      m_size,
+      l_size,
+      xl_size,
+      xxl_size,
+      fourxl_size,
+      usOrder
     } = body;
 
     const { data, error } = await supabase
@@ -105,15 +107,17 @@ export async function POST(request: Request) {
         performance,
         achievement_rate: achievementRate,
         temperature,
-        xs_size: xs85,
-        s_size: s90,
-        m_size: m95,
-        l_size: l100,
-        xl_size: xl105,
-        xxl_size: xxl110,
-        fourxl_size: xxxl120,
+        xs_size,
+        s_size,
+        m_size,
+        l_size,
+        xl_size,
+        xxl_size,
+        fourxl_size,
+        us_order: usOrder,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        is_active: true
       })
       .select()
       .single();

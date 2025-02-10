@@ -21,6 +21,7 @@ export async function GET(request: Request) {
         xl_size,
         xxl_size,
         fourxl_size,
+        temperature,
         sales_plans!sales_performance_sales_plan_id_fkey (
           id,
           channel_id,
@@ -90,8 +91,10 @@ export async function GET(request: Request) {
         그룹키: groupKey,
         표시날짜: originalDate,
         채널: channel.channel_name,
-        상세채널 : channel.channel_details
+        상세채널 : channel.channel_details,
+        전환율 : curr.temperature
       });
+
 
       if (!acc[groupKey]) {
         acc[groupKey] = {};
@@ -109,9 +112,13 @@ export async function GET(request: Request) {
           performance: 0,
           achievement_rate: 0,
           share: 0,
-          date: originalDate
+          date: originalDate,
+          temperature: 0,
+          operation_count: 0
         };
       }
+
+
 
       const quantity = (
         (curr.xs_size || 0) +
@@ -128,7 +135,12 @@ export async function GET(request: Request) {
       acc[groupKey][channelId].target_quantity += curr.sales_plans?.target_quantity || 0;
       acc[groupKey][channelId].performance += curr.performance || 0;
       acc[groupKey][channelId].achievement_rate = (acc[groupKey][channelId].performance / acc[groupKey][channelId].target_quantity) * 100;
+      acc[groupKey][channelId].temperature += curr.temperature || 0 ;
+      acc[groupKey][channelId].operation_count += 1;
       return acc;
+
+
+
     }, {});
 
     // 결과 로깅
@@ -140,13 +152,14 @@ export async function GET(request: Request) {
       }))
     );
 
-    // 각 그룹의 점유율 계산
+    // 각 그룹의 점유율과 평균 전환율 계산
     const result = Object.entries(groupedStats).map(([date, channels]) => {
       const totalAmount = Object.values(channels).reduce((sum, stat) => sum + stat.amount, 0);
       
       const channelStats = Object.values(channels).map(stat => ({
         ...stat,
         share: totalAmount > 0 ? (stat.amount / totalAmount) * 100 : 0,
+        temperature: stat.operation_count > 0 ? (stat.temperature / stat.operation_count) : 0, // 평균 전환율 계산
         date
       }));
 

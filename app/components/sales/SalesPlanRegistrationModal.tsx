@@ -59,9 +59,11 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
     sale_price: '',
     commission_rate: '',
     target_quantity: '',
-    channel_detail: ''
+    channel_detail: '',
+    is_undecided: false
   };
   
+
   const [formData, setFormData] = useState({
     season_year: '',
     season_type: 'SS',
@@ -70,6 +72,9 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
   const [productCode, setProductCode] = useState('');
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  // 미확정 상태를 위한 state 추가
+  const [isUndecided, setIsUndecided] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -81,6 +86,7 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
       setFormattedSalePrice('');
       setFormattedCommissionRate('');
       setFormattedTarget('');
+      setIsUndecided(false); // 모달 열릴 때 미확정 상태 초기화
       setFormData({
         season_year: '',
         season_type: 'SS',
@@ -107,12 +113,15 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
         commission_rate: editData.commission_rate.toString(),
         target_quantity: editData.target_quantity.toString(),
         set_id: selectedSet?.set_id || '',
-        channel_detail: editData.channel_detail || ''
+        channel_detail: editData.channel_detail || '',
+        is_undecided: editData.is_undecided || false
       });
 
       setSelectedDate(new Date(editData.plan_date));
       setSelectedTime(new Date(`2000-01-01T${editData.plan_time}`));
       
+      setIsUndecided(editData.is_undecided || false);
+
       const channel = channels.find(ch => ch.id === editData.channel_id);
       setSelectedChannel(channel || null);
       
@@ -260,7 +269,8 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
         product_code: formData.product_code,
         sale_price: Number(formData.sale_price),
         commission_rate: Number(formData.commission_rate),
-        target_quantity: Number(formData.target_quantity)
+        target_quantity: Number(formData.target_quantity),
+        is_undecided: isUndecided
       };
 
       const url = editData 
@@ -497,7 +507,20 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
           </div>
         </div>
 
-        <div className="flex justify-end space-x-3 mt-6">
+        {/* 미확정 체크박스 추가 - 폼 하단에 배치 */}
+        <div className="mt-6 mb-4">
+          <label className="inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isUndecided}
+              onChange={(e) => setIsUndecided(e.target.checked)}
+              className="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+            />
+            <span className="ml-2 text-sm text-gray-700">미확정</span>
+          </label>
+        </div>
+
+        <div className="flex justify-end space-x-3">
           <button
             type="button"
             onClick={onClose}

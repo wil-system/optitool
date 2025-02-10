@@ -25,60 +25,104 @@ interface IAssortmentModalProps {
   groupedProducts?: IGroupedProduct[];
 }
 
+// 사이즈 정렬 순서
+const sizeOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '4XL'];
+
+// 사이즈 정렬 함수
+const compareSizes = (a: string, b: string): number => {
+  // 'FREE' 또는 비슷한 문자열은 항상 마지막으로
+  if (a.toUpperCase().includes('FREE')) return 1;
+  if (b.toUpperCase().includes('FREE')) return -1;
+
+  // 숫자인 경우 숫자 크기로 비교
+  const numA = parseInt(a);
+  const numB = parseInt(b);
+  if (!isNaN(numA) && !isNaN(numB)) {
+    return numA - numB;
+  }
+
+  // 하나만 숫자인 경우, 숫자가 먼저 오도록
+  if (!isNaN(numA)) return -1;
+  if (!isNaN(numB)) return 1;
+
+  // 문자열인 경우 sizeOrder 배열 기준으로 정렬
+  const indexA = sizeOrder.indexOf(a);
+  const indexB = sizeOrder.indexOf(b);
+  
+  // sizeOrder에 없는 문자열은 마지막으로 (FREE 앞에)
+  if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+  if (indexA === -1) return 1;
+  if (indexB === -1) return -1;
+  
+  return indexA - indexB;
+};
+
+// 동적 사이즈 매핑 함수
+const getSizeMapping = (items: any[]) => {
+  const sizes = new Set<string>();
+  items.forEach(item => {
+    if (item.specification) {
+      sizes.add(item.specification);
+    }
+  }); 
+  
+  // 사이즈 정렬
+  return Array.from(sizes)
+    .sort(compareSizes)
+    .reduce((acc, size) => {
+      // 데이터베이스 컬럼명 규칙에 맞게 변환
+      const key = size.toLowerCase()
+        .replace(/^(\d+)$/, 'size_$1') // 숫자만 있는 경우 (예: "90" -> "size_90")
+        .replace('xl', 'xl_size')
+        .replace('xs', 'xs_size')
+        .replace('s', 's_size')
+        .replace('m', 'm_size')
+        .replace('l', 'l_size')
+        .replace('xxl', 'xxl_size')
+        .replace('4xl', 'fourxl_size')
+        .replace('free', 'free_size')
+        .replace(/[^a-z0-9_]/g, '_'); // 특수문자를 _로 변환
+      acc[key] = size;
+      return acc;
+    }, {} as { [key: string]: string });
+};
+
 export default function AssortmentModal({ isOpen, onClose, setId, setName, groupedProducts = [] }: IAssortmentModalProps) {
-  const [assortments, setAssortments] = useState<{ [key: string]: number }>({
-    xs_size: 0,
-    s_size: 0,
-    m_size: 0,
-    l_size: 0,
-    xl_size: 0,
-    xxl_size: 0,
-    fourxl_size: 0,
-  });
+  // 동적으로 사이즈 매핑 생성
+  const sizeLabels = getSizeMapping(groupedProducts.flatMap(group => group.items));
+  
+  const [assortments, setAssortments] = useState<{ [key: string]: number }>(() => 
+    Object.keys(sizeLabels).reduce((acc, key) => ({ ...acc, [key]: 0 }), {})
+  );
 
-  const [calculatedQuantities, setCalculatedQuantities] = useState<{ [key: string]: number }>({
-    xs_size: 0,
-    s_size: 0,
-    m_size: 0,
-    l_size: 0,
-    xl_size: 0,
-    xxl_size: 0,
-    fourxl_size: 0,
-  });
-
-  const sizeLabels = {
-    xs_size: 'XS',
-    s_size: 'S',
-    m_size: 'M',
-    l_size: 'L',
-    xl_size: 'XL',
-    xxl_size: 'XXL',
-    fourxl_size: '4XL',
-  };
+  const [calculatedQuantities, setCalculatedQuantities] = useState<{ [key: string]: number }>(() =>
+    Object.keys(sizeLabels).reduce((acc, key) => ({ ...acc, [key]: 0 }), {})
+  );
 
   // 사이즈별 최소 재고 계산 함수를 상단으로 이동
   const calculateMinStockBySizes = () => {
-    const sizeStocks: { [key: string]: number } = {
-      'XS': Infinity,
-      'S': Infinity,
-      'M': Infinity,
-      'L': Infinity,
-      'XL': Infinity,
-      'XXL': Infinity,
-      '4XL': Infinity
-    };
+    const sizeStocks: { [key: string]: number } = {};
 
+    // 모든 그룹의 아이템을 순회하며 사이즈별 최소 재고 계산
     groupedProducts.forEach(group => {
       group.items.forEach(item => {
-        if (item.size && item.total !== undefined) {
-          sizeStocks[item.size] = Math.min(sizeStocks[item.size], item.total);
+        if (item.specification) {
+          // 해당 사이즈가 처음 나오는 경우 Infinity로 초기화
+          if (!(item.specification in sizeStocks)) {
+            sizeStocks[item.specification] = Infinity;
+          }
+          // 현재 재고와 기존 최소값 비교
+          sizeStocks[item.specification] = Math.min(
+            sizeStocks[item.specification], 
+            item.total !== undefined ? item.total : Infinity
+          );
         }
       });
     });
 
     // Infinity 값을 0으로 변환
     Object.keys(sizeStocks).forEach(size => {
-      if (sizeStocks[size] === Infinity) {
+      if (sizeStocks[size] === Infinity || isNaN(sizeStocks[size])) {
         sizeStocks[size] = 0;
       }
     });
@@ -146,21 +190,45 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
         return;
       }
 
+      // 사이즈별 수량과 퍼센트를 순서대로 정렬하여 매핑
+      const sortedSizes = Object.entries(sizeLabels)
+        .sort(([, a], [, b]) => compareSizes(a, b))
+        .map(([key, label]) => {
+          const percent = assortments[key] || 0;
+          // operationalQuantity를 기준으로 수량 계산
+          const quantity = percent > 0 ? Math.round(operationalQuantity * (percent / 100)) : 0;
+          
+          return {
+            sizeData: `${label}:${quantity}`,
+            percent: percent
+          };
+        });
+
+      // API 요청 데이터 구성
+      const requestData = {
+        setId,
+        setName,
+        totalQuantity: operationalQuantity,
+        // size_1부터 size_9까지 순서대로 매핑
+        ...sortedSizes.reduce((acc, { sizeData }, index) => ({
+          ...acc,
+          [`size_${index + 1}`]: sizeData
+        }), {}),
+        // size_percent_1부터 size_percent_9까지 순서대로 매핑
+        ...sortedSizes.reduce((acc, { percent }, index) => ({
+          ...acc,
+          [`size_percent_${index + 1}`]: percent || null
+        }), {})
+      };
+
+      console.log('Request Data:', requestData); // 디버깅용 로그
+
       const response = await fetch('/api/operational-quantity/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          setId,
-          setName,
-          assortments,
-          calculatedQuantities: Object.entries(sizeLabels).reduce((acc, [size, label]) => ({
-            ...acc,
-            [size]: calculateAssortmentQuantity(assortments[size], minStocks[label])
-          }), {}),
-          totalQuantity: operationalQuantity
-        }),
+        body: JSON.stringify(requestData),
       });
 
       const result = await response.json();
@@ -217,7 +285,7 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
                         {group.items.map((item, itemIndex) => (
                           <tr key={itemIndex} className="border-t border-gray-200 hover:bg-gray-50">
                             <td className="px-2 py-1">
-                              <div className="font-medium">{item.size || '-'}</div>
+                              <div className="font-medium">{item.specification || '-'}</div>
                               <div className="text-xs text-gray-500">{item.product_code}</div>
                             </td>
                             <td className="px-2 py-1 text-center font-medium">{item.total}</td>

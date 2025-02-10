@@ -59,9 +59,10 @@ export async function GET(request: Request) {
       )
     `)
     .eq('is_active', true)
-    .eq('sales_plans.is_active', true)
-    .eq('sales_plans.set_products.is_active', true)
-    .eq('sales_plans.sales_channels.is_active', true);
+    .eq('sales_plans.is_active', true);
+    //.eq('sales_plans.set_products.is_active', true);
+    //.eq('sales_plans.sales_channels.is_active', true);
+
 
     if (startDate) {
       const startDateTime = new Date(startDate);
@@ -125,6 +126,7 @@ export async function GET(request: Request) {
         // 개별 상품 ID들을 배열로 변환
         acc[groupKey][setid] = {
           id: curr.id,
+          operation_count: 1,
           sales_plan_id: curr.sales_plan_id,
           performance: curr.performance,
           achievement_rate: curr.achievement_rate,
@@ -132,6 +134,7 @@ export async function GET(request: Request) {
           xs_size: curr.xs_size,
           s_size: curr.s_size,
           m_size: curr.m_size,
+
           l_size: curr.l_size,
           xl_size: curr.xl_size,
           xxl_size: curr.xxl_size,
@@ -180,7 +183,14 @@ export async function GET(request: Request) {
         acc[groupKey][setid].xl_size += (curr.xl_size || 0);
         acc[groupKey][setid].xxl_size += (curr.xxl_size || 0);
         acc[groupKey][setid].fourxl_size += (curr.fourxl_size || 0);
+        acc[groupKey][setid].operation_count += 1;
+        // acc[groupKey][setid].temperature = ((acc[groupKey][setid].temperature + (curr.temperature || 0)) /2 || 0);
+        // console.log("acc[groupKey][setid].temperature", acc[groupKey][setid].temperature ,curr.temperature);
+        acc[groupKey][setid].temperature = ((acc[groupKey][setid].temperature * (acc[groupKey][setid].operation_count - 1) + curr.temperature) / acc[groupKey][setid].operation_count);
       }
+
+
+
 
       return acc;
     }, {});
@@ -201,6 +211,8 @@ export async function GET(request: Request) {
         return {
           product_name: plan.sales_plan.set_product.set_name,
           set_product_code: plan.sales_plan.set_product.set_id.toString(),
+          temperature: plan.temperature,
+          operation_count: plan.operation_count, // 초기 방송 횟수 설정
           // 실제 주문 수량
           xs_size: plan.xs_size || 0,
           s_size: plan.s_size || 0,
@@ -232,6 +244,9 @@ export async function GET(request: Request) {
           acc[key].xl_size += curr.xl_size;
           acc[key].xxl_size += curr.xxl_size;
           acc[key].fourxl_size += curr.fourxl_size;
+          
+          
+          
 
           // 전체 수량 재계산
           const totalQuantity = (
@@ -252,6 +267,9 @@ export async function GET(request: Request) {
           acc[key].xl_assort = Number(((totalQuantity > 0 ? (acc[key].xl_size / totalQuantity) * 100 : 0)).toFixed(1));
           acc[key].xxl_assort = Number(((totalQuantity > 0 ? (acc[key].xxl_size / totalQuantity) * 100 : 0)).toFixed(1));
           acc[key].fourxl_assort = Number(((totalQuantity > 0 ? (acc[key].fourxl_size / totalQuantity) * 100 : 0)).toFixed(1));
+
+          
+          
         }
         return acc;
       }, {});

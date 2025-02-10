@@ -43,7 +43,10 @@ export async function POST(request: NextRequest) {
     
     const { error } = await supabase
       .from('sales_plans')
-      .insert([{ ...data, is_active: true }]);
+      .insert([{ ...data,
+         is_active: true,
+         is_undecided: data.is_undecided || false
+         }]);
 
     if (error) throw error;
 

@@ -139,7 +139,8 @@ export default function ProductStatisticsPage() {
 
     const averageTemperature = totals && totals.temperature_count > 0
       ? (totals.temperature_sum / totals.temperature_count).toFixed(1)
-      : '-';
+      : '0';
+
 
     return (
       <div className="overflow-x-auto">
@@ -151,11 +152,12 @@ export default function ProductStatisticsPage() {
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">세트품번</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">채널</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">상세채널</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">운영횟수</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">판매금액</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">목표</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">실적</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">달성률</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">온도</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">전환율</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">점유율</th>
             </tr>
           </thead>
@@ -167,7 +169,9 @@ export default function ProductStatisticsPage() {
                 <td className="px-6 py-4 whitespace-nowrap text-right">{product.set_product_code}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">{product.channel}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">{product.channel_detail || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-right">{product.operation_count}회</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">{product.sales_amount?.toLocaleString()}원</td>
+
                 <td className="px-6 py-4 whitespace-nowrap text-right">{product.target?.toLocaleString()}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">{product.performance?.toLocaleString()}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -175,7 +179,7 @@ export default function ProductStatisticsPage() {
                     ? ((product.performance || 0) / product.target * 100).toFixed(1)
                     : '0'}%
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right">{product.temperature || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-right">{product.temperature || '0'}%</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">{product.share?.toFixed(1)}%</td>
               </tr>
             ))}
@@ -183,7 +187,10 @@ export default function ProductStatisticsPage() {
             {showTotals && totals && (
               <tr className="bg-gray-50 font-bold">
                 <td className="px-6 py-4 whitespace-nowrap">총계</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right" colSpan={4}>-</td>
+                <td className="px-6 py-4 whitespace-nowrap text-right" colSpan={4}></td>
+                <td className="px-6 py-4 whitespace-nowrap text-right">
+                  {products.reduce((sum, p) => sum + p.operation_count, 0)}회
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">
                   {totals.sales_amount.toLocaleString()}원
                 </td>
@@ -194,10 +201,10 @@ export default function ProductStatisticsPage() {
                   {totals.performance.toLocaleString()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">
-                  {totalAchievementRate.toFixed(1)}%
+                  {totalAchievementRate.toFixed(1) || '0'}%
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">
-                  {averageTemperature}
+                  {averageTemperature || '0'}%
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">100%</td>
               </tr>
