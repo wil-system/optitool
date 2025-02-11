@@ -25,6 +25,7 @@ interface SetProduct {
   set_id: string;
   set_name: string;
   is_active: boolean;
+  remarks : string;
 }
 
 interface Props {
@@ -389,14 +390,14 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">세트품번</label>
               <select
-                value={formData.set_id || ''}
+                value={formData.set_id|| ''}
                 onChange={(e) => setFormData({ ...formData, set_id: e.target.value })}
                 className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
               >
                 <option value="">선택하세요</option>
                 {setIds.map((set) => (
                   <option key={set.id} value={set.set_id}>
-                    {set.set_id} - {set.set_name}
+                    {set.remarks? `${set.set_id} - ${set.set_name} - ${set.remarks}` : `${set.set_id} - ${set.set_name}`}
                   </option>
                 ))}
               </select>

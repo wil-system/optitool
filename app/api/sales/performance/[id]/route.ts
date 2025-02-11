@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
 
-export async function DELETE(
+export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -10,28 +10,31 @@ export async function DELETE(
 
     if (!id) {
       return NextResponse.json(
-        { error: '삭제할 판매실적 ID가 필요합니다.' },
+        { error: '삭제할 판매계획 ID가 필요합니다.' },
         { status: 400 }
       );
     }
 
-    const { error } = await supabase
-      .from('sales_performance')
-      .delete()
+     const { error } = await supabase
+      .from('sales_plans')
+      .update({ 
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', id);
 
     if (error) throw error;
 
     return NextResponse.json({ 
       success: true,
-      message: '판매실적이 삭제되었습니다.' 
+      message: '판매계획이 삭제되었습니다.' 
     });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
       { 
         success: false,
-        error: '판매실적 삭제 중 오류가 발생했습니다.' 
+        error: '판매계획 삭제 중 오류가 발생했습니다.' 
       },
       { status: 500 }
     );

@@ -22,6 +22,7 @@ interface SetProduct {
   id: number;
   set_id: string;
   set_name: string;
+  remarks: string;
   is_active: boolean;
 }
 

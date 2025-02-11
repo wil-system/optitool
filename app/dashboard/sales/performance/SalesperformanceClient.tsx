@@ -24,6 +24,7 @@ interface ISetProduct {
   set_id: string;
   set_name: string;
   is_active: boolean;
+  remarks: string;
 }
 
 interface Props {
@@ -362,7 +363,11 @@ export default function SalesPerformanceClient() {
     if (window.confirm('이 판매계획을 삭제하시겠습니까?')) {
       try {
         const response = await fetch(`/api/sales/performance/${planId}`, {
-          method: 'DELETE',
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ is_active: false }),
         });
 
         const result = await response.json();
@@ -372,6 +377,7 @@ export default function SalesPerformanceClient() {
         }
 
         alert('판매계획이 삭제되었습니다.');
+        setShowPopup(false);
         fetchData(currentPage);
       } catch (error) {
         console.error('Error:', error);
@@ -535,6 +541,12 @@ export default function SalesPerformanceClient() {
                   className="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   등록
+                </button>
+                <button
+                  onClick={(e) => handleDelete(e, selectedPlan.id)}
+                  className="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  삭제
                 </button>
               </div>
             </div>
