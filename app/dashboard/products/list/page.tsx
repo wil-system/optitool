@@ -7,6 +7,15 @@ import type { Product } from '@/types/product';
 import ProductRegistrationModal from '@/app/components/products/ProductRegistrationModal';
 import LoadingSpinner from '@/app/components/common/LoadingSpinner';
 
+// 진행 상태를 위한 타입 정의
+type ProgressStatus = 'pending' | 'complete' | 'error' | null;
+
+interface IProgress {
+  zone: ProgressStatus;
+  login: ProgressStatus;
+  inventory: ProgressStatus;
+}
+
 export default function ProductListPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,6 +33,14 @@ export default function ProductListPage() {
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [totalPages, setTotalPages] = useState(1);
+  const [ecountZone, setEcountZone] = useState<string | null>(null);
+  const [ecountSessionId, setEcountSessionId] = useState<string | null>(null);
+  const [lastSyncDate, setLastSyncDate] = useState<string | null>(null);
+  const [progress, setProgress] = useState<IProgress>({
+    zone: null,
+    login: null,
+    inventory: null,
+  });
 
   useEffect(() => {
     fetchProducts();
@@ -145,6 +162,73 @@ export default function ProductListPage() {
   const handleSearch = () => {
     setCurrentPage(0);
     fetchProducts();
+  };
+
+  const fetchEcountData = async () => {
+    try {
+      setIsLoading(true);
+      setProgress({ zone: null, login: null, inventory: null });
+
+      let currentZone = ecountZone;
+      let currentSessionId = ecountSessionId;
+
+      if (!currentZone) {
+        setProgress(prev => ({ ...prev, zone: 'pending' }));
+        const zoneResponse = await fetch('/api/ecount/zone');
+        const zoneResult = await zoneResponse.json();
+        
+        if (!zoneResult.success) {
+          setProgress(prev => ({ ...prev, zone: 'error' }));
+          throw new Error(zoneResult.error);
+        }
+        
+        currentZone = zoneResult.data.zone;
+        localStorage.setItem('ecountZone', zoneResult.data.zone);
+        setEcountZone(currentZone);
+        setProgress(prev => ({ ...prev, zone: 'complete' }));
+      }
+
+      setProgress(prev => ({ ...prev, login: 'pending' }));
+      const loginResponse = await fetch('/api/ecount/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ zone: currentZone }),
+      });
+      
+      const loginResult = await loginResponse.json();
+      
+      if (!loginResult.success) {
+        setProgress(prev => ({ ...prev, login: 'error' }));
+        throw new Error(loginResult.error);
+      }
+      
+      currentSessionId = loginResult.data.sessionId;
+      localStorage.setItem('ecountSessionId', loginResult.data.sessionId);
+      setEcountSessionId(currentSessionId);
+      setProgress(prev => ({ ...prev, login: 'complete' }));
+
+      setProgress(prev => ({ ...prev, inventory: 'pending' }));
+      const response = await fetch(`/api/ecount/products?zone=${currentZone}&sessionId=${currentSessionId}`);
+      const result = await response.json();
+
+      if (!result.success) {
+        setProgress(prev => ({ ...prev, inventory: 'error' }));
+        throw new Error(result.error);
+      }
+
+      setLastSyncDate(new Date().toISOString());
+      setProgress(prev => ({ ...prev, inventory: 'complete' }));
+      
+      fetchProducts();
+
+    } catch (err) {
+      console.error('ECOUNT 데이터 조회 에러:', err);
+      alert(err instanceof Error ? err.message : 'ECOUNT 데이터 조회 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const EditableRow = ({ product }: { product: Product }) => {
@@ -367,6 +451,31 @@ export default function ProductListPage() {
               >
                 상품등록
               </button>
+              {/* <button
+                onClick={fetchEcountData}
+                disabled={isLoading}
+                className={`px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <svg 
+                  className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                  />
+                </svg>
+                ECOUNT 데이터 가져오기
+              </button> */}
+              {/* {lastSyncDate && (
+                <div className="text-sm text-gray-600">
+                  마지막 동기화: {new Date(lastSyncDate).toLocaleString()}
+                </div>
+              )} */}
             </div>
           </div>
 

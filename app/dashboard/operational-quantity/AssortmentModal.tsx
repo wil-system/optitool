@@ -132,6 +132,9 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
 
   const minStocks = calculateMinStockBySizes();
 
+  // 최소 재고 총합계 계산 함수 추가
+  const totalMinStock = Object.values(minStocks).reduce((sum, stock) => sum + stock, 0);
+
   // 아소트 입력 총합계 계산
   const totalAssortmentPercentage = Object.entries(sizeLabels)
     .reduce((total, [size, label]) => {
@@ -352,7 +355,10 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
                     </tr>
                   ))}
                   <tr className="border-t border-gray-200 bg-gray-50">
-                    <td colSpan={2} className="px-3 py-2 text-right font-medium">총합계</td>
+                    <td className="px-3 py-2 text-right font-medium">총합계</td>
+                    <td className="px-3 py-2 text-center font-medium text-blue-600">
+                      {totalMinStock.toLocaleString()}
+                    </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center space-x-2">
                         <span className={`w-20 text-center font-bold ${

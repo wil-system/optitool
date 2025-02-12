@@ -10,7 +10,8 @@ export async function POST(request: Request) {
     if (!companyNo) {
       throw new Error('회사 정보가 설정되지 않았습니다.');
     }
-
+	
+    // const loginResponse = await fetch(`https://oapi${zone}.ecount.com/OAPI/V2/OAPILogin`, {
     const loginResponse = await fetch(`https://oapi${zone}.ecount.com/OAPI/V2/OAPILogin`, {
       method: 'POST',
       headers: {
