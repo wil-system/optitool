@@ -6,19 +6,19 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { set_id, set_name, individual_product_ids, remarks } = body;
 
-    // 세트 ID 중복 체크
-    const { data: existingSet } = await supabase
-      .from('set_products')
-      .select('set_id')
-      .eq('set_id', set_id)
-      .single();
+    // // 세트 ID 중복 체크
+    // const { data: existingSet } = await supabase
+    //   .from('set_products')
+    //   .select('set_id')
+    //   .eq('set_id', set_id)
+    //   .single();
 
-    if (existingSet) {
-      return NextResponse.json(
-        { error: '이미 존재하는 세트번호입니다.' },
-        { status: 400 }
-      );
-    }
+    // if (existingSet) {
+    //   return NextResponse.json(
+    //     { error: '이미 존재하는 세트번호입니다.' },
+    //     { status: 400 }
+    //   );
+    // }
 
     // DB에 저장
     const { data, error } = await supabase
