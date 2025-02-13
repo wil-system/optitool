@@ -341,7 +341,7 @@ export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess,
                 dateFormat="yyyy년 M월 d일"
                 locale={ko}
                 placeholderText="날짜 선택"
-                minDate={new Date()}
+                
                 className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
                 wrapperClassName="w-full"
               />
