@@ -150,11 +150,40 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
       return total + (assortments[size] || 0);
     }, 0);
 
-  // 운영가능 총 수량 계산
-  const calculateOperationalQuantity = (quantities: { [key: string]: number }) => {
-    const validQuantities = Object.values(quantities).filter(q => q > 0);
-    return validQuantities.length > 0 ? Math.min(...validQuantities) : 0;
+  // 전체 최소 재고 중 가장 낮은 값 찾기
+  const getLowestMinStock = () => {
+    return Math.min(...Object.values(minStocks).filter(stock => stock > 0));
   };
+
+  // 운영가능세트 계산 함수 - 반올림 제거
+  const calculateOperationalSet = (minStock: number, percentage: number) => {
+    if (minStock === 0 || percentage === 0) return 0;
+    return Math.round(minStock / (percentage * 0.01));
+  };
+
+  // 운영가능세트 중 가장 낮은 값 찾기 (0 제외)
+  const getLowestOperationalSet = () => {
+    const operationalSets = Object.entries(sizeLabels).map(([size, label]) => {
+      const percentage = assortments[size] || 0;
+      const minStock = minStocks[label];
+      return calculateOperationalSet(minStock, percentage);
+    }).filter(value => value > 0);
+    
+    return Math.min(...operationalSets);
+  };
+
+  // 할당 수량 계산 함수
+  const calculateAssortmentQuantity = (percentage: number) => {
+    if (percentage === 0 || percentage === undefined) return 0;
+    const lowestOperationalSet = getLowestOperationalSet();
+    return Math.round(lowestOperationalSet * (percentage * 0.01));
+  };
+
+  // 운영가능 총 수량 계산 (할당 수량의 총 합)
+  const operationalQuantity = Math.floor(Object.entries(sizeLabels).reduce((total, [size]) => {
+    const percentage = assortments[size] || 0;
+    return Math.floor(total + calculateAssortmentQuantity(percentage));
+  }, 0));
 
   const handleInputChange = (size: string, value: string) => {
     const sizeLabel = sizeLabels[size as keyof typeof sizeLabels];
@@ -177,15 +206,6 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
       ...prev,
       [size]: calculatedQuantity
     }));
-  };
-
-  // 운영가능 총 수량
-  const operationalQuantity = calculateOperationalQuantity(calculatedQuantities);
-
-  // 사이즈별 할당 수량 계산
-  const calculateAssortmentQuantity = (percentage: number, minStock: number) => {
-    if (minStock === 0 || percentage === 0) return 0;
-    return Math.round(operationalQuantity * (percentage / 100));
   };
 
   // 재고 수량 계산 함수 수정
@@ -420,7 +440,7 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
                     <th className="text-center px-3 py-1.5">최소 재고</th>
                     <th className="text-center px-3 py-1.5">아소트 입력(%)</th>
                     <th className="text-center px-3 py-1.5">할당 수량</th>
-                    <th className="text-center px-3 py-1.5">계산된 수량</th>
+                    <th className="text-center px-3 py-1.5">운영가능세트</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -450,10 +470,10 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
                         </div>
                       </td>
                       <td className="px-3 py-2 text-center font-medium text-purple-600">
-                        {calculateAssortmentQuantity(assortments[size], minStocks[label])}
+                        {calculateAssortmentQuantity(assortments[size])}
                       </td>
                       <td className="px-3 py-2 text-center font-medium text-green-600">
-                        {calculatedQuantities[size]}
+                        {calculateOperationalSet(minStocks[label], assortments[size])}
                       </td>
                     </tr>
                   ))}
@@ -488,7 +508,7 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
                     <div className={`text-base font-bold ${
                       minStocks[label] === 0 ? 'text-red-500' : 'text-blue-600'
                     }`}>
-                      {calculateAssortmentQuantity(assortments[size], minStocks[label])}
+                      {calculateAssortmentQuantity(assortments[size])}
                     </div>
                   </div>
                 ))}
