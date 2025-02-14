@@ -99,6 +99,13 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
     Object.keys(sizeLabels).reduce((acc, key) => ({ ...acc, [key]: 0 }), {})
   );
 
+  // 체크박스 상태 추가
+  const [selectedWarehouses, setSelectedWarehouses] = useState({
+    warehouse106: true,
+    warehouse3333: true,
+    warehouse12345: true,
+  });
+
   // 사이즈별 최소 재고 계산 함수를 상단으로 이동
   const calculateMinStockBySizes = () => {
     const sizeStocks: { [key: string]: number } = {};
@@ -130,7 +137,8 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
     return sizeStocks;
   };
 
-  const minStocks = calculateMinStockBySizes();
+  // minStocks를 상태로 관리
+  const [minStocks, setMinStocks] = useState(() => calculateMinStockBySizes());
 
   // 최소 재고 총합계 계산 함수 추가
   const totalMinStock = Object.values(minStocks).reduce((sum, stock) => sum + stock, 0);
@@ -178,6 +186,73 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
   const calculateAssortmentQuantity = (percentage: number, minStock: number) => {
     if (minStock === 0 || percentage === 0) return 0;
     return Math.round(operationalQuantity * (percentage / 100));
+  };
+
+  // 재고 수량 계산 함수 수정
+  const calculateStock = (item: any) => {
+    let totalStock = 0;
+    if (selectedWarehouses.warehouse106) totalStock += item.warehouse_106 || 0;
+    if (selectedWarehouses.warehouse3333) totalStock += item.warehouse_3333 || 0;
+    if (selectedWarehouses.warehouse12345) totalStock += item.warehouse_12345 || 0;
+    return totalStock;
+  };
+
+  // 체크박스 상태 변경 시 모든 수량을 재계산하는 함수
+  const recalculateAllQuantities = (newWarehouseState: typeof selectedWarehouses) => {
+    // 새로운 최소 재고 계산
+    const newMinStocks: { [key: string]: number } = {};
+    
+    groupedProducts.forEach(group => {
+      group.items.forEach(item => {
+        if (item.specification) {
+          if (!(item.specification in newMinStocks)) {
+            newMinStocks[item.specification] = Infinity;
+          }
+          
+          // 선택된 창고의 재고만 합산
+          let totalStock = 0;
+          if (newWarehouseState.warehouse106) totalStock += item.warehouse_106 || 0;
+          if (newWarehouseState.warehouse3333) totalStock += item.warehouse_3333 || 0;
+          if (newWarehouseState.warehouse12345) totalStock += item.warehouse_12345 || 0;
+          
+          newMinStocks[item.specification] = Math.min(
+            newMinStocks[item.specification],
+            totalStock
+          );
+        }
+      });
+    });
+
+    // Infinity 값을 0으로 변환
+    Object.keys(newMinStocks).forEach(size => {
+      if (newMinStocks[size] === Infinity || isNaN(newMinStocks[size])) {
+        newMinStocks[size] = 0;
+      }
+    });
+
+    // 최소 재고 상태 업데이트
+    setMinStocks(newMinStocks);
+
+    // 각 사이즈별 계산된 수량 업데이트
+    const newCalculatedQuantities = { ...calculatedQuantities };
+    Object.entries(sizeLabels).forEach(([size, label]) => {
+      const percentage = assortments[size] / 100;
+      newCalculatedQuantities[size] = percentage > 0 ? Math.round(newMinStocks[label] / percentage) : 0;
+    });
+
+    setCalculatedQuantities(newCalculatedQuantities);
+  };
+
+  // 체크박스 상태 변경 핸들러 수정
+  const handleWarehouseChange = (warehouseKey: keyof typeof selectedWarehouses) => {
+    const newWarehouseState = {
+      ...selectedWarehouses,
+      [warehouseKey]: !selectedWarehouses[warehouseKey]
+    };
+    setSelectedWarehouses(newWarehouseState);
+    
+    // 모든 수량 재계산
+    recalculateAllQuantities(newWarehouseState);
   };
 
   const handleSubmit = async () => {
@@ -265,6 +340,34 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
           </button>
         </div>
 
+        {/* 체크박스 추가 */}
+        <div className="flex space-x-4 mb-4">
+          <label>
+            <input
+              type="checkbox"
+              checked={selectedWarehouses.warehouse106}
+              onChange={() => handleWarehouseChange('warehouse106')}
+            />
+            화성창고
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={selectedWarehouses.warehouse3333}
+              onChange={() => handleWarehouseChange('warehouse3333')}
+            />
+            인천창고
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={selectedWarehouses.warehouse12345}
+              onChange={() => handleWarehouseChange('warehouse12345')}
+            />
+            반품창고
+          </label>
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           {/* 왼쪽: 세트 구성 상품 목록 */}
           <div>
@@ -291,7 +394,7 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
                               <div className="font-medium">{item.specification || '-'}</div>
                               <div className="text-xs text-gray-500">{item.product_code}</div>
                             </td>
-                            <td className="px-2 py-1 text-center font-medium">{item.total}</td>
+                            <td className="px-2 py-1 text-center font-medium">{calculateStock(item)}</td>
                             <td className="px-2 py-1 text-center">{item.warehouse_106}</td>
                             <td className="px-2 py-1 text-center">{item.warehouse_3333}</td>
                             <td className="px-2 py-1 text-center">{item.warehouse_12345}</td>
