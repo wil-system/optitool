@@ -161,11 +161,10 @@ export default function SalesPerformanceClient() {
     const totalSum = getTotalSum();
     setFormData(prev => ({
       ...prev,
-      performance: totalSum,
-      achievementRate: selectedPlan ? Number(((totalSum / selectedPlan.target_quantity) * 100).toFixed(2)) : 0
+      //performance: totalSum,
+      achievementRate: selectedPlan ? Number(((formData.performance / selectedPlan.target_quantity) * 100).toFixed(2)) : 0
     }));
-  }, [formData.xs85, formData.s90, formData.m95, formData.l100, 
-      formData.xl105, formData.xxl110, formData.xxxl120, formData.usOrder, selectedPlan]);
+  }, [formData.performance, selectedPlan]);
 
   if (loading) {
     return (
@@ -612,9 +611,9 @@ export default function SalesPerformanceClient() {
                             </label>
                             <input
                               type="text"
-                              className="block w-full rounded-md border-2 border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed text-center"
-                              value={formatNumber(formData.performance)}
-                              disabled
+                              className="block w-full rounded-md border-2 border-gray-300 bg-gray-100 text-gray-600 text-center"
+                              value={formData.performance || ''}
+                              onChange={(e) => setFormData({...formData, performance: parseFormattedNumber(e.target.value)})}
                             />
                           </div>
                           <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
