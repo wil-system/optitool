@@ -49,7 +49,7 @@ interface FormData {
 }
 
 export default function SalesPerformanceClient() {
-  const itemsPerPage = 10;
+  const itemsPerPage = 12;
   
   const [data, setData] = useState<ISalesPlans[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,11 +125,7 @@ export default function SalesPerformanceClient() {
       }
 
       if (performanceResult.data) {
-        if (page === 1) {
-          setData(performanceResult.data);
-        } else {
-          setData(prev => [...prev, ...performanceResult.data]);
-        }
+        setData(performanceResult.data);
         setHasMore(performanceResult.hasMore);
         setCurrentPage(page);
         setTotalPages(performanceResult.totalPages);
@@ -149,8 +145,8 @@ export default function SalesPerformanceClient() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData(currentPage);
+  }, [currentPage]);
 
   const getTotalSum = () => {
     return formData.xs85 + formData.s90 + formData.m95 + formData.l100 + 
@@ -243,10 +239,6 @@ export default function SalesPerformanceClient() {
   };
 
   const displayData = isSearchActive ? searchResults : data;
-  const currentItems = displayData.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
 
   const formatPrice = (price: number) => {
     return price.toLocaleString() + '원';
@@ -494,7 +486,7 @@ export default function SalesPerformanceClient() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {currentItems.map((plan) => (
+                {displayData.map((plan) => (
                   <tr 
                     key={plan.id}
                     className={`hover:bg-gray-50 cursor-pointer 
@@ -561,7 +553,7 @@ export default function SalesPerformanceClient() {
           <div className="bg-white px-4 py-3 flex items-center justify-center border-t border-gray-200 sm:px-6">
             <div className="flex justify-center items-center">
               <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage === 1}
                 className="px-4 py-2 border rounded-lg mr-2 disabled:opacity-50"
               >
@@ -573,7 +565,7 @@ export default function SalesPerformanceClient() {
               </span>
 
               <button
-                onClick={() => setCurrentPage(prev => prev + 1)}
+                onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={!hasMore || data.length === 0}
                 className="px-4 py-2 border rounded-lg disabled:opacity-50"
               >
