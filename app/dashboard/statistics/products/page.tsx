@@ -179,7 +179,7 @@ export default function ProductStatisticsPage() {
                     ? ((product.performance || 0) / product.target * 100).toFixed(1)
                     : '0'}%
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right">{product.temperature || '0'}%</td>
+                <td className="px-6 py-4 whitespace-nowrap text-right">{product.temperature?.toFixed(1) || '0'}%</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">{product.share?.toFixed(1)}%</td>
               </tr>
             ))}
