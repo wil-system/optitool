@@ -12,4 +12,27 @@ export interface SalesPerformance {
   remarks: string;
   created_at: string;
   updated_at: string;
+}
+
+export type SearchFilterKey = 'season' | 'channel' | 'channelDetail' | 'category' | 'productName' | 'setId';
+
+export interface ISearchFilter {
+  key: SearchFilterKey;
+  label: string;
+}
+
+interface ISalesPerformanceWithRelations {
+  id: number;
+  sales_plan_id: number;
+  performance: number;
+  achievement_rate: number;
+  // ... 다른 필드들
+  sales_plans: {
+    id: number;
+    // ... sales_plans의 다른 필드들
+    sales_channels: {
+      channel_code: string;
+      channel_name: string;
+    };
+  };
 } 

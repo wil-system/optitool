@@ -48,6 +48,11 @@ interface SalesPerformance {
 
 type SearchFilterKey = 'season' | 'channel' | 'channelDetail' | 'category' | 'productName' | 'setId';
 
+interface ISearchFilter {
+  key: SearchFilterKey;
+  label: string;
+}
+
 export default function SalesPerformanceListClient({ initialData, channels }: Props) {
   const itemsPerPage = 12;
   const [data, setData] = useState<SalesPerformance[]>([]);
@@ -56,6 +61,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState<SearchFilterKey>('season');
   const [searchFilters, setSearchFilters] = useState<Record<SearchFilterKey, { checked: boolean; label: string }>>({
     season: { checked: true, label: '시즌' },
     channel: { checked: true, label: '판매채널' },
@@ -72,6 +78,15 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
   const [showPopup, setShowPopup] = useState(false);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
 
+  const searchFilterOptions: ISearchFilter[] = [
+    { key: 'season', label: '시즌' },
+    { key: 'channel', label: '판매채널' },
+    { key: 'channelDetail', label: '채널상세' },
+    { key: 'category', label: '카테고리' },
+    { key: 'productName', label: '상품명' },
+    { key: 'setId', label: '세트품번' }
+  ];
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -79,10 +94,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
         page: String(currentPage - 1),
         size: String(itemsPerPage),
         searchTerm: appliedSearchTerm,
-        searchFields: Object.entries(searchFilters)
-          .filter(([_, value]) => value.checked)
-          .map(([key]) => key)
-          .join(',')
+        searchFields: selectedFilter
       });
 
       const response = await fetch(`/api/sales/performance/list?${params}`);
@@ -269,20 +281,18 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
               판매실적 목록
             </h3>
             <div className="flex items-center gap-4">
-              {/* 검색 필터 체크박스 */}
-              <div className="flex items-center gap-2">
-                {Object.entries(searchFilters).map(([key, value]) => (
+              {/* 검색 필터 라디오 버튼 */}
+              <div className="flex items-center gap-4">
+                {searchFilterOptions.map(({ key, label }) => (
                   <label key={key} className="inline-flex items-center">
                     <input
-                      type="checkbox"
-                      className="form-checkbox h-4 w-4 text-blue-600"
-                      checked={value.checked}
-                      onChange={(e) => setSearchFilters(prev => ({
-                        ...prev,
-                        [key as SearchFilterKey]: { ...prev[key as SearchFilterKey], checked: e.target.checked }
-                      }))}
+                      type="radio"
+                      className="form-radio h-4 w-4 text-blue-600"
+                      checked={selectedFilter === key}
+                      onChange={() => setSelectedFilter(key)}
+                      name="searchFilter"
                     />
-                    <span className="ml-2 text-sm text-gray-600">{value.label}</span>
+                    <span className="ml-2 text-sm text-gray-600">{label}</span>
                   </label>
                 ))}
               </div>

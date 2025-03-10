@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
+import { SearchFilterKey } from '@/types/sales';
 
 export async function GET(request: Request) {
   try {
@@ -7,13 +8,13 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '0');
     const size = parseInt(searchParams.get('size') || '12');
     const searchTerm = searchParams.get('searchTerm') || '';
-    const searchFields = (searchParams.get('searchFields') || '').split(',');
+    const searchField = searchParams.get('searchFields') as SearchFilterKey;
 
     let query = supabase
       .from('sales_performance')
       .select(`
         *,
-        sales_plans!sales_performance_sales_plan_id_fkey (
+        sales_plans!inner (
           *,
           sales_channels!inner (
             channel_code,
@@ -22,16 +23,60 @@ export async function GET(request: Request) {
         )
       `, { count: 'exact' })
       .eq('is_active', true)
-      .not('sales_plan_id', 'is', null)
-      .order('created_at', { ascending: false });
+      .not('sales_plan_id', 'is', null);
 
-    // 검색 조건이 있는 경우
-    if (searchTerm && searchFields.length > 0) {
-      const searchConditions = searchFields.map(field => {
-        return `${field}.ilike.%${searchTerm}%`;
-      });
-      query = query.or(searchConditions.join(','));
+    // 검색 조건 적용
+    if (searchTerm && searchField) {
+      const searchValue = `%${searchTerm}%`;
+      
+      switch(searchField) {
+        case 'season':
+          query = query.filter('sales_plans.season', 'ilike', searchValue);
+          break;
+        case 'channel':
+          query = query.filter('sales_plans.sales_channels.channel_name', 'ilike', searchValue);
+          break;
+        case 'channelDetail':
+          query = query.filter('sales_plans.channel_detail', 'ilike', searchValue);
+          break;
+        case 'category':
+          query = query.filter('sales_plans.product_category', 'ilike', searchValue);
+          break;
+        case 'productName':
+          // 세트 상품명으로 먼저 검색
+          const { data: setProductsByName } = await supabase
+            .from('set_products')
+            .select('id')
+            .ilike('set_name', searchValue)
+            .eq('is_active', true);
+          
+          if (setProductsByName && setProductsByName.length > 0) {
+            const setIds = setProductsByName.map(sp => sp.id);
+            query = query.in('sales_plans.set_id', setIds);
+          } else {
+            query = query.eq('sales_plans.set_id', -1);
+          }
+          break;
+        case 'setId':
+          // 세트품번으로 검색
+          const { data: setProductsById } = await supabase
+            .from('set_products')
+            .select('id')
+            .ilike('set_id', searchValue)
+            .eq('is_active', true);
+          
+          if (setProductsById && setProductsById.length > 0) {
+            const setIds = setProductsById.map(sp => sp.id);
+            query = query.in('sales_plans.set_id', setIds);
+          } else {
+            query = query.eq('sales_plans.set_id', -1);
+          }
+          break;
+      }
     }
+
+    // 정렬 적용
+    query = query.order('created_at', { ascending: false });
 
     // 페이지네이션 적용
     const from = page * size;
@@ -39,6 +84,7 @@ export async function GET(request: Request) {
     const { data, error, count } = await query.range(from, to);
 
     if (error) {
+      console.error('Query Error:', error);
       throw error;
     }
 
@@ -59,9 +105,7 @@ export async function GET(request: Request) {
     }
 
     const formattedData = data?.map(item => {
-      // 해당 판매계획의 세트 상품 찾기
       const setProduct = setProducts.find(sp => sp.id === item.sales_plans?.set_id);
-
       return {
         id: item.id,
         sales_plan_id: item.sales_plan_id,
@@ -94,8 +138,6 @@ export async function GET(request: Request) {
         us_order: Number(item.us_order) || 0
       };
     }) || [];
-
-    console.log('Formatted Data:', formattedData); // 데이터 확인용 로그
 
     return NextResponse.json({
       data: formattedData,
