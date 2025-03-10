@@ -101,7 +101,7 @@ export async function GET(request: Request) {
       data: formattedData,
       totalCount: count || 0,
       totalPages: count ? Math.ceil(count / size) : 0,
-      currentPage: page,
+      currentPage: page + 1,
       hasMore: count ? (page + 1) * size < count : false
     });
 

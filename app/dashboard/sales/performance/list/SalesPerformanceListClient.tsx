@@ -49,7 +49,7 @@ interface SalesPerformance {
 type SearchFilterKey = 'season' | 'channel' | 'channelDetail' | 'category' | 'productName' | 'setId';
 
 export default function SalesPerformanceListClient({ initialData, channels }: Props) {
-  const itemsPerPage = 10;
+  const itemsPerPage = 12;
   const [data, setData] = useState<SalesPerformance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +77,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
       setLoading(true);
       const params = new URLSearchParams({
         page: String(currentPage - 1),
-        size: '12',  // 페이지 사이즈 12로 통일
+        size: String(itemsPerPage),
         searchTerm: appliedSearchTerm,
         searchFields: Object.entries(searchFilters)
           .filter(([_, value]) => value.checked)
@@ -90,8 +90,8 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
         throw new Error('데이터 조회 실패');
       }
 
-      const { data, totalPages: pages } = await response.json();
-      setData(data || []);
+      const { data: newData, totalPages: pages } = await response.json();
+      setData(newData || []);
       setTotalPages(pages);
     } catch (error) {
       console.error('Error:', error);
@@ -103,7 +103,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [currentPage, appliedSearchTerm]);
 
   const getChannelName = (channelCode: string | null) => {
     if (!channelCode) return '';
@@ -111,25 +111,8 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
     return channel?.channel_name || '';
   };
 
-  const filteredData = data.filter(item => {
-    if (appliedSearchTerm === '') return true;
-    
-    const searchValue = appliedSearchTerm.toLowerCase().trim();
-    return (
-      (searchFilters.season.checked && item.season?.toString().toLowerCase().includes(searchValue)) ||
-      (searchFilters.channel.checked && item.channel_name?.toString().toLowerCase().includes(searchValue)) ||
-      (searchFilters.channelDetail.checked && item.channel_detail?.toString().toLowerCase().includes(searchValue)) ||
-      (searchFilters.category.checked && item.product_category?.toString().toLowerCase().includes(searchValue)) ||
-      (searchFilters.productName.checked && item.set_name?.toString().toLowerCase().includes(searchValue)) ||
-      (searchFilters.setId.checked && item.set_id?.toString().toLowerCase().includes(searchValue))
-    );
-  });
-
-  
-  const currentItems = filteredData.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const filteredData = data;
+  const currentItems = data;
 
   const formatNumber = (num: number | null | undefined) => {
     if (num === null || num === undefined) return '0';
@@ -444,19 +427,35 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
           <div className="bg-white px-4 py-3 flex items-center justify-center border-t border-gray-200 sm:px-6">
             <nav className="flex items-center justify-between">
               <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                onClick={() => {
+                  if (currentPage > 1) {
+                    setCurrentPage(prev => prev - 1);
+                  }
+                }}
                 disabled={currentPage === 1}
-                className="relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 disabled:opacity-50"
+                className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md 
+                  ${currentPage === 1 
+                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
+                    : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300'
+                  }`}
               >
                 이전
               </button>
               <span className="mx-4 text-sm text-gray-700">
-                {currentPage} / {totalPages}
+                페이지 {currentPage} / {totalPages}
               </span>
               <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                onClick={() => {
+                  if (currentPage < totalPages) {
+                    setCurrentPage(prev => prev + 1);
+                  }
+                }}
                 disabled={currentPage >= totalPages}
-                className="relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 disabled:opacity-50"
+                className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md 
+                  ${currentPage >= totalPages 
+                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
+                    : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300'
+                  }`}
               >
                 다음
               </button>
