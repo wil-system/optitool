@@ -442,7 +442,7 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                 이전
               </button>
               <span className="mx-4 text-sm text-gray-700">
-                페이지 {currentPage} / {totalPages}
+                {currentPage} / {totalPages}
               </span>
               <button
                 onClick={() => {
