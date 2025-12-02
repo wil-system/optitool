@@ -4,8 +4,10 @@ import { supabase } from '@/utils/supabase';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = Number(searchParams.get('page')) || 0;
-    const size = Number(searchParams.get('size')) || 12;
+    const pageParam = searchParams.get('page');
+    const sizeParam = searchParams.get('size');
+    const page = pageParam ? Number(pageParam) || 0 : 0;
+    const size = sizeParam ? Number(sizeParam) || 12 : null;
     const searchTerm = searchParams.get('searchTerm') || '';
     const searchFields = searchParams.get('searchFields')?.split(',') || [];
 
@@ -23,24 +25,42 @@ export async function GET(request: Request) {
       query = query.or(searchConditions.join(','));
     }
 
-    const { data, error, count } = await query
-      .range(page * size, (page + 1) * size - 1);
+    // 페이지네이션 여부에 따라 분기
+    if (size) {
+      // 목록 화면 등에서 사용하는 페이지네이션 응답
+      const { data, error, count } = await query
+        .range(page * size, (page + 1) * size - 1);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    // is_active가 없는 경우 기본값 true로 설정
-    const dataWithActive = data?.map(item => ({
-      ...item,
-      is_active: item.is_active ?? true
-    }));
+      const dataWithActive = data?.map(item => ({
+        ...item,
+        is_active: item.is_active ?? true
+      }));
 
-    return NextResponse.json({ 
-      data: dataWithActive,
-      totalCount: count || 0,
-      totalPages: count ? Math.ceil(count / size) : 0,
-      currentPage: page,
-      hasMore: count ? (page + 1) * size < count : false
-    });
+      return NextResponse.json({ 
+        data: dataWithActive,
+        totalCount: count || 0,
+        totalPages: count ? Math.ceil(count / size) : 0,
+        currentPage: page,
+        hasMore: count ? (page + 1) * size < count : false
+      });
+    } else {
+      // size 파라미터가 없는 경우(예: 판매계획 등록 모달의 세트품번 드롭다운)는
+      // 전체 활성 세트 목록을 반환
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      const dataWithActive = data?.map(item => ({
+        ...item,
+        is_active: item.is_active ?? true
+      }));
+
+      return NextResponse.json({ 
+        data: dataWithActive
+      });
+    }
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
