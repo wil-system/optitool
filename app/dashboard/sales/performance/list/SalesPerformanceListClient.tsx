@@ -77,6 +77,17 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
   const [totalPages, setTotalPages] = useState(1);
   const [showPopup, setShowPopup] = useState(false);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+  const [isSizeEditMode, setIsSizeEditMode] = useState(false);
+  const [sizeForm, setSizeForm] = useState({
+    xs85: 0,
+    s90: 0,
+    m95: 0,
+    l100: 0,
+    xl105: 0,
+    xxl110: 0,
+    xxxl120: 0,
+    us_order: 0,
+  });
 
   const searchFilterOptions: ISearchFilter[] = [
     { key: 'season', label: '시즌' },
@@ -145,6 +156,17 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
   const handleRowClick = (e: React.MouseEvent, performance: SalesPerformance) => {
     setSelectedPerformance(performance);
     setIsDetailModalOpen(true);
+    setIsSizeEditMode(false);
+    setSizeForm({
+      xs85: performance.xs85 || 0,
+      s90: performance.s90 || 0,
+      m95: performance.m95 || 0,
+      l100: performance.l100 || 0,
+      xl105: performance.xl105 || 0,
+      xxl110: performance.xxl110 || 0,
+      xxxl120: performance.xxxl120 || 0,
+      us_order: performance.us_order || 0,
+    });
   };
 
   const calculateSizeTotal = (item: SalesPerformance) => {
@@ -188,6 +210,97 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
 
   const formatPrice = (price: number): string => {
     return price.toLocaleString('ko-KR');
+  };
+
+  const handleSizeEditToggle = () => {
+    if (!selectedPerformance) return;
+    if (!isSizeEditMode) {
+      setSizeForm({
+        xs85: selectedPerformance.xs85 || 0,
+        s90: selectedPerformance.s90 || 0,
+        m95: selectedPerformance.m95 || 0,
+        l100: selectedPerformance.l100 || 0,
+        xl105: selectedPerformance.xl105 || 0,
+        xxl110: selectedPerformance.xxl110 || 0,
+        xxxl120: selectedPerformance.xxxl120 || 0,
+        us_order: selectedPerformance.us_order || 0,
+      });
+    }
+    setIsSizeEditMode(prev => !prev);
+  };
+
+  const handleSizeInputChange = (key: keyof typeof sizeForm, value: string) => {
+    const num = Number(value.replace(/,/g, '')) || 0;
+    setSizeForm(prev => ({ ...prev, [key]: num }));
+  };
+
+  const handleSizeSave = async () => {
+    if (!selectedPerformance) return;
+
+    const total =
+      Number(sizeForm.xs85 || 0) +
+      Number(sizeForm.s90 || 0) +
+      Number(sizeForm.m95 || 0) +
+      Number(sizeForm.l100 || 0) +
+      Number(sizeForm.xl105 || 0) +
+      Number(sizeForm.xxl110 || 0) +
+      Number(sizeForm.xxxl120 || 0) +
+      Number(sizeForm.us_order || 0);
+
+    const achievementRate = selectedPerformance.target_quantity
+      ? Number(((total / selectedPerformance.target_quantity) * 100).toFixed(1))
+      : 0;
+
+    try {
+      const response = await fetch(`/api/sales/performance/list/${selectedPerformance.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          performance: total,
+          achievement_rate: achievementRate,
+          xs85: sizeForm.xs85,
+          s90: sizeForm.s90,
+          m95: sizeForm.m95,
+          l100: sizeForm.l100,
+          xl105: sizeForm.xl105,
+          xxl110: sizeForm.xxl110,
+          xxxl120: sizeForm.xxxl120,
+          us_order: sizeForm.us_order,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || result.message || '사이즈 정보 수정에 실패했습니다.');
+      }
+
+      const updated: SalesPerformance = {
+        ...selectedPerformance,
+        performance: total,
+        achievement_rate: achievementRate,
+        xs85: sizeForm.xs85,
+        s90: sizeForm.s90,
+        m95: sizeForm.m95,
+        l100: sizeForm.l100,
+        xl105: sizeForm.xl105,
+        xxl110: sizeForm.xxl110,
+        xxxl120: sizeForm.xxxl120,
+        us_order: sizeForm.us_order,
+      };
+
+      setSelectedPerformance(updated);
+      setData(prev =>
+        prev.map(item => (item.id === updated.id ? updated : item))
+      );
+      setIsSizeEditMode(false);
+      alert('사이즈별 수량이 수정되었습니다.');
+    } catch (err) {
+      console.error('사이즈 정보 수정 오류:', err);
+      alert(err instanceof Error ? err.message : '사이즈 정보 수정 중 오류가 발생했습니다.');
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -478,7 +591,6 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
       {isDetailModalOpen && selectedPerformance && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setIsDetailModalOpen(false)}
         >
           <div 
             className="bg-white rounded-xl p-6 max-w-5xl w-full max-h-[80vh] overflow-y-auto shadow-2xl"
@@ -569,40 +681,94 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
 
               {/* 사이즈별 정보 */}
               <div className="col-span-4 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
-                <h3 className="text-sm font-semibold text-blue-600 mb-3">사이즈별 정보</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-blue-600">사이즈별 정보</h3>
+                  <div className="space-x-2">
+                    {isSizeEditMode && (
+                      <button
+                        onClick={handleSizeSave}
+                        className="px-3 py-1 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        저장
+                      </button>
+                    )}
+                    <button
+                      onClick={handleSizeEditToggle}
+                      className="px-3 py-1 text-xs font-medium rounded-md border border-blue-400 text-blue-600 hover:bg-blue-50"
+                    >
+                      {isSizeEditMode ? '취소' : '수정'}
+                    </button>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   {(() => {
-                    const sizeMapping = [
-                      { label: 'XS(85)', value: selectedPerformance.xs85 },
-                      { label: 'S(90)', value: selectedPerformance.s90 },
-                      { label: 'M(95)', value: selectedPerformance.m95 },
-                      { label: 'L(100)', value: selectedPerformance.l100 },
-                      { label: 'XL(105)', value: selectedPerformance.xl105 },
-                      { label: 'XXL(110)', value: selectedPerformance.xxl110 },
-                      { label: 'XXXL(120)', value: selectedPerformance.xxxl120 }
+                    const viewSizeMapping = [
+                      { label: 'XS(85)', key: 'xs85' as const, value: selectedPerformance.xs85 },
+                      { label: 'S(90)', key: 's90' as const, value: selectedPerformance.s90 },
+                      { label: 'M(95)', key: 'm95' as const, value: selectedPerformance.m95 },
+                      { label: 'L(100)', key: 'l100' as const, value: selectedPerformance.l100 },
+                      { label: 'XL(105)', key: 'xl105' as const, value: selectedPerformance.xl105 },
+                      { label: 'XXL(110)', key: 'xxl110' as const, value: selectedPerformance.xxl110 },
+                      { label: 'XXXL(120)', key: 'xxxl120' as const, value: selectedPerformance.xxxl120 }
                     ];
 
-                    const total = calculateSizeTotal(selectedPerformance);
-                    const maxValue = Math.max(...sizeMapping.map(size => size.value || 0));
+                    const total = isSizeEditMode
+                      ? Number(sizeForm.xs85 || 0) +
+                        Number(sizeForm.s90 || 0) +
+                        Number(sizeForm.m95 || 0) +
+                        Number(sizeForm.l100 || 0) +
+                        Number(sizeForm.xl105 || 0) +
+                        Number(sizeForm.xxl110 || 0) +
+                        Number(sizeForm.xxxl120 || 0) +
+                        Number(sizeForm.us_order || 0)
+                      : calculateSizeTotal(selectedPerformance);
+
+                    const maxValue = Math.max(
+                      ...viewSizeMapping.map(size =>
+                        isSizeEditMode ? (size.key in sizeForm ? (sizeForm as any)[size.key] || 0 : size.value || 0) : size.value || 0
+                      )
+                    );
 
                     return (
                       <>
-                        {sizeMapping.map((size, index) => {
-                          const value = size.value || 0;
+                        {viewSizeMapping.map((size, index) => {
+                          const value = isSizeEditMode
+                            ? (sizeForm as any)[size.key] || 0
+                            : size.value || 0;
                           const percent = calculateSizePercent(value, total);
 
                           return (
-                            <div key={index} className="flex items-center bg-white p-2.5 rounded-md text-sm shadow-sm border border-blue-100">
+                            <div
+                              key={index}
+                              className="flex items-center bg-white p-2.5 rounded-md text-sm shadow-sm border border-blue-100"
+                            >
                               <span className="w-20 font-medium text-gray-700">{size.label}</span>
-                              <div className="flex-1 mx-3 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full ${value === maxValue && value !== 0 ? 'bg-red-500' : 'bg-blue-500'}`}
-                                  style={{ width: `${percent}%` }}
-                                ></div>
-                              </div>
-                              <span className={`w-28 text-right text-sm font-medium ${value === maxValue && value !== 0 ? 'text-red-600' : 'text-gray-700'}`}>
-                                {formatNumber(value)}개 <span className="text-gray-500">({percent}%)</span>
-                              </span>
+                              {isSizeEditMode ? (
+                                <input
+                                  type="number"
+                                  className="ml-auto w-20 h-6 px-2 border rounded-md text-right text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  value={sizeForm[size.key] || 0}
+                                  onChange={(e) => handleSizeInputChange(size.key, e.target.value)}
+                                />
+                              ) : (
+                                <>
+                                  <div className="flex-1 mx-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full ${
+                                        value === maxValue && value !== 0 ? 'bg-red-500' : 'bg-blue-500'
+                                      }`}
+                                      style={{ width: `${percent}%` }}
+                                    ></div>
+                                  </div>
+                                  <span
+                                    className={`w-28 text-right text-sm font-medium ${
+                                      value === maxValue && value !== 0 ? 'text-red-600' : 'text-gray-700'
+                                    }`}
+                                  >
+                                    {formatNumber(value)}개 <span className="text-gray-500">({percent}%)</span>
+                                  </span>
+                                </>
+                              )}
                             </div>
                           );
                         })}
@@ -611,25 +777,48 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
                         <div className="mt-4 pt-4 border-t-2 border-blue-200">
                           <div className="flex items-center bg-yellow-50 p-2.5 rounded-md text-sm shadow-sm border border-yellow-200">
                             <span className="w-20 font-medium text-yellow-800">미주 주문</span>
-                            <div className="flex-1 mx-3 h-2 bg-gray-200 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full rounded-full bg-yellow-500"
-                                style={{ width: `${calculateSizePercent(selectedPerformance.us_order || 0, total)}%` }}
-                              ></div>
-                            </div>
-                            <span className="w-28 text-right text-sm font-medium text-yellow-800">
-                              {formatNumber(selectedPerformance.us_order || 0)}개 
-                              <span className="text-gray-500">
-                                ({calculateSizePercent(selectedPerformance.us_order || 0, total)}%)
-                              </span>
-                            </span>
+                            {isSizeEditMode ? (
+                              <input
+                                type="number"
+                                className="ml-auto w-24 h-7 px-2 border rounded-md text-right text-xs focus:outline-none focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                value={sizeForm.us_order || 0}
+                                onChange={(e) => handleSizeInputChange('us_order', e.target.value)}
+                              />
+                            ) : (
+                              <>
+                                <div className="flex-1 mx-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-yellow-500"
+                                    style={{
+                                      width: `${calculateSizePercent(
+                                        selectedPerformance.us_order || 0,
+                                        total
+                                      )}%`,
+                                    }}
+                                  ></div>
+                                </div>
+                                <span className="w-28 text-right text-sm font-medium text-yellow-800">
+                                  {formatNumber(selectedPerformance.us_order || 0)}개
+                                  <span className="text-gray-500">
+                                    (
+                                    {calculateSizePercent(
+                                      selectedPerformance.us_order || 0,
+                                      total
+                                    )}
+                                    %)
+                                  </span>
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
 
                         <div className="border-t border-blue-200 mt-3 pt-3">
                           <div className="flex justify-between items-center">
                             <span className="font-medium text-gray-700">총 합계</span>
-                            <span className="text-lg font-bold text-blue-600">{formatNumber(total)}개</span>
+                            <span className="text-lg font-bold text-blue-600">
+                              {formatNumber(total)}개
+                            </span>
                           </div>
                         </div>
                       </>
