@@ -1,124 +1,119 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '@/app/components/layout/DashboardLayout';
+import { format } from 'date-fns';
+import SalesPlanRegistrationModal from '@/app/components/sales/SalesPlanRegistrationModal';
+import SalesCombinedEditModal from '@/app/components/sales/SalesCombinedEditModal';
+import { ISalesPlans, ISalesPlanWithPerformance } from '@/app/types/database';
 import LoadingSpinner from '@/app/components/common/LoadingSpinner';
+import { DeleteConfirmModal, SuccessModal, ErrorModal } from '@/app/components/common/FeedbackModals';
+import * as XLSX from 'xlsx';
+import XLSXStyle from 'xlsx-js-style';
+import { supabase } from '@/utils/supabase';
+
+interface Channel {
+  id: number;
+  channel_code: string;
+  channel_name: string;
+}
+
+interface Category {
+  id: number;
+  category_name: string;
+}
+
+interface SetProduct {
+  id: number;
+  set_id: string;
+  set_name: string;
+  remarks: string;
+}
 
 interface Props {
-  initialData: any[];
-  channels: any[];
+  initialData: ISalesPlans[];
+  channels: Channel[];
+  categories: Category[];
+  setIds: SetProduct[];
 }
 
-interface SalesPerformance {
-  id: number;
-  sales_plan_id: number;
-  performance: number;
-  achievement_rate: number;
-  temperature: number;
-  xs_size: number;
-  s_size: number;
-  m_size: number;
-  l_size: number;
-  xl_size: number;
-  xxl_size: number;
-  fourxl_size: number;
-  us_order: number;
-  target_quantity: number;
-  created_at: string;
-  updated_at: string;
-  set_name: string;
-  set_id: string;
-  product_code: string;
-  channel_name: string;
-  channel_detail: string;
-  product_category: string;
-  plan_date: string;
-  plan_time: string;
-  season: string;
-  sale_price: number;
-  quantity_composition: string;
-  xs85: number;
-  s90: number;
-  m95: number;
-  l100: number;
-  xl105: number;
-  xxl110: number;
-  xxxl120: number;
-}
-
-type SearchFilterKey = 'season' | 'channel' | 'channelDetail' | 'category' | 'productName' | 'setId';
-
-interface ISearchFilter {
-  key: SearchFilterKey;
-  label: string;
-}
-
-export default function SalesPerformanceListClient({ initialData, channels }: Props) {
-  const itemsPerPage = 12;
-  const [data, setData] = useState<SalesPerformance[]>([]);
+export default function SalesPerformanceListClient({ initialData, channels: initialChannels, categories: initialCategories, setIds }: Props) {
+  const [data, setData] = useState<ISalesPlanWithPerformance[]>([]);
+  const [channels, setChannels] = useState(initialChannels);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [error, setError] = useState<Error | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState<SearchFilterKey>('season');
-  const [searchFilters, setSearchFilters] = useState<Record<SearchFilterKey, { checked: boolean; label: string }>>({
-    season: { checked: true, label: '시즌' },
-    channel: { checked: true, label: '판매채널' },
-    channelDetail: { checked: true, label: '채널상세' },
-    category: { checked: true, label: '카테고리' },
-    productName: { checked: true, label: '상품명' },
-    setId: { checked: true, label: '세트품번' }
-  });
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [selectedPerformance, setSelectedPerformance] = useState<SalesPerformance | null>(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [performanceToDelete, setPerformanceToDelete] = useState<SalesPerformance | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [showPopup, setShowPopup] = useState(false);
-  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
-  const [isSizeEditMode, setIsSizeEditMode] = useState(false);
-  const [sizeForm, setSizeForm] = useState({
-    xs85: 0,
-    s90: 0,
-    m95: 0,
-    l100: 0,
-    xl105: 0,
-    xxl110: 0,
-    xxxl120: 0,
-    us_order: 0,
+  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
+  const [isPerformanceModalOpen, setIsPerformanceModalOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [sets, setSets] = useState<SetProduct[]>(setIds);
+  const [selectedPlan, setSelectedPlan] = useState<ISalesPlanWithPerformance | undefined>(undefined);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [searchFilters, setSearchFilters] = useState({
+    season: true,
+    channel: true,
+    productName: true,
+    setId: true
   });
+  const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
+  const [isExcelMenuOpen, setIsExcelMenuOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const excelMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const searchFilterOptions: ISearchFilter[] = [
-    { key: 'season', label: '시즌' },
-    { key: 'channel', label: '판매채널' },
-    { key: 'channelDetail', label: '채널상세' },
-    { key: 'category', label: '카테고리' },
-    { key: 'productName', label: '상품명' },
-    { key: 'setId', label: '세트품번' }
-  ];
+  // 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (excelMenuRef.current && !excelMenuRef.current.contains(event.target as Node)) {
+        setIsExcelMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       const params = new URLSearchParams({
-        page: String(currentPage - 1),
-        size: String(itemsPerPage),
+        page: (currentPage - 1).toString(),
+        size: '12',
         searchTerm: appliedSearchTerm,
-        searchFields: selectedFilter
+        season: searchFilters.season ? 'true' : 'false',
+        channel: searchFilters.channel ? 'true' : 'false',
+        productName: searchFilters.productName ? 'true' : 'false',
+        setId: searchFilters.setId ? 'true' : 'false',
+        onlyWithPerformance: 'true'
       });
-
-      const response = await fetch(`/api/sales/performance/list?${params}`);
-      if (!response.ok) {
-        throw new Error('데이터 조회 실패');
+      
+      const [plansResponse, channelsResponse] = await Promise.all([
+        fetch(`/api/sales/plans/with-performance?${params}`),
+        fetch('/api/channels?size=1000') // 채널은 페이징 없이 충분히 많이 가져옴
+      ]);
+      
+      if (!plansResponse.ok || !channelsResponse.ok) {
+        throw new Error('데이터를 불러오는데 실패했습니다.');
       }
+      
+      const [plansResult, channelsResult] = await Promise.all([
+        plansResponse.json(),
+        channelsResponse.json()
+      ]);
 
-      const { data: newData, totalPages: pages } = await response.json();
-      setData(newData || []);
-      setTotalPages(pages);
-    } catch (error) {
-      console.error('Error:', error);
-      setError(error instanceof Error ? error.message : '데이터 조회 중 오류가 발생했습니다.');
+      setData(plansResult.data || []);
+      setTotalPages(plansResult.totalPages || 1);
+      setChannels(channelsResult.data || []);
+      
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('알 수 없는 오류가 발생했습니다'));
     } finally {
       setLoading(false);
     }
@@ -128,23 +123,223 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
     fetchData();
   }, [currentPage, appliedSearchTerm]);
 
-  const getChannelName = (channelCode: string | null) => {
-    if (!channelCode) return '';
-    const channel = channels.find(ch => ch.channel_code === channelCode);
-    return channel?.channel_name || '';
-  };
-
-  const filteredData = data;
-  const currentItems = data;
-
-  const formatNumber = (num: number | null | undefined) => {
-    if (num === null || num === undefined) return '0';
-    return num.toLocaleString();
-  };
-
   const handleSearch = () => {
     setAppliedSearchTerm(searchTerm);
     setCurrentPage(1);
+  };
+
+  const handleDownloadTemplate = () => {
+    const headers = [
+      "ID", "시즌년도", "시즌", "일자", "시작시간", "채널", "세트품번", "상품명", "추가구성", "추가품번", 
+      "판매가", "수수료", "목표", "총주문수량", "순주문수량", "총매출", "순매출", "달성율", "미리주문%", "종합달성률%",
+      "사이즈수량(85)", "사이즈수량(90)", "사이즈수량(95)", "사이즈수량(100)", "사이즈수량(105)", "사이즈수량(110)", "사이즈수량(115)", "사이즈수량(120)"
+    ];
+    
+    const exampleData = [
+      [
+        "", "2024", "SS", "2024-03-20", "10:00", "GS홈쇼핑", "SET-001", "예시 상품", "기본구성", "ITEM-001",
+        100000, 15, 100
+      ]
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...exampleData]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '판매계획실적 양식');
+    
+    const headerStyle = {
+      fill: { fgColor: { rgb: "CCFFCC" } },
+      font: { bold: true },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin" }, bottom: { style: "thin" },
+        left: { style: "thin" }, right: { style: "thin" }
+      }
+    };
+
+    const performanceHeaderStyle = {
+      fill: { fgColor: { rgb: "FFE5CC" } }, // 주황색 계열 (Light Orange)
+      font: { bold: true },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin" }, bottom: { style: "thin" },
+        left: { style: "thin" }, right: { style: "thin" }
+      }
+    };
+
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:AB1');
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const address = XLSX.utils.encode_col(C) + "1";
+      if (!ws[address]) continue;
+      
+      // "총주문수량" (인덱스 13) 부터 주황색 적용
+      if (C >= 13) {
+        ws[address].s = performanceHeaderStyle;
+      } else {
+        ws[address].s = headerStyle;
+      }
+    }
+
+    XLSXStyle.writeFile(wb, '판매계획_실적_업로드_양식.xlsx');
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      setLoading(true);
+      const { data: allData, error } = await supabase
+        .from('sales_plans_with_performance')
+        .select('*')
+        .order('plan_date', { ascending: false });
+
+      if (error) throw error;
+
+      const headers = [
+        "ID", "시즌년도", "시즌", "일자", "시작시간", "채널", "세트품번", "상품명", "추가구성", "추가품번", 
+        "판매가", "수수료", "목표", "총주문수량", "순주문수량", "총매출", "순매출", "달성율", "미리주문%", "종합달성률%",
+        "사이즈수량(85)", "사이즈수량(90)", "사이즈수량(95)", "사이즈수량(100)", "사이즈수량(105)", "사이즈수량(110)", "사이즈수량(115)", "사이즈수량(120)"
+      ];
+
+      const excelData = allData.map(item => [
+        item.id, item.season_year, item.season, item.plan_date, item.plan_time, item.channel_name, item.set_item_code, item.product_name, item.additional_composition, item.additional_item_code,
+        item.sale_price, item.commission_rate, item.target_quantity, item.total_order_quantity, item.net_order_quantity, item.total_sales, item.net_sales, item.achievement_rate, item.pre_order_rate, item.total_achievement_rate,
+        item.size_85, item.size_90, item.size_95, item.size_100, item.size_105, item.size_110, item.size_115, item.size_120
+      ]);
+
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...excelData]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '판매계획실적 목록');
+
+      const headerStyle = {
+        fill: { fgColor: { rgb: "CCFFCC" } },
+        font: { bold: true },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top: { style: "thin" }, bottom: { style: "thin" },
+          left: { style: "thin" }, right: { style: "thin" }
+        }
+      };
+
+      const performanceHeaderStyle = {
+        fill: { fgColor: { rgb: "FFE5CC" } }, // 주황색 계열
+        font: { bold: true },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top: { style: "thin" }, bottom: { style: "thin" },
+          left: { style: "thin" }, right: { style: "thin" }
+        }
+      };
+
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:AB1');
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const address = XLSX.utils.encode_col(C) + "1";
+        if (!ws[address]) continue;
+        
+        // "총주문수량" (인덱스 13) 부터 주황색 적용
+        if (C >= 13) {
+          ws[address].s = performanceHeaderStyle;
+        } else {
+          ws[address].s = headerStyle;
+        }
+      }
+
+      const now = new Date();
+      const timestamp = format(now, 'yyyyMMdd_HHmm');
+      XLSXStyle.writeFile(wb, `판매계획실적_${timestamp}.xlsx`);
+    } catch (err) {
+      console.error('Export error:', err);
+      alert('엑셀 출력 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const errors: string[] = [];
+
+      const formattedData = jsonData.map((row: any, index: number) => {
+        const rowNum = index + 2; // 헤더 제외하고 2행부터 시작
+        const channelName = row['채널']?.toString().trim();
+
+        // 채널 유효성 검사: 기존 채널 테이블의 텍스트와 일치하는지 확인
+        if (!channelName) {
+          errors.push(`${rowNum}행 [채널]: 값이 누락되었습니다.`);
+        } else {
+          const matchingChannel = channels.find(c => c.channel_name === channelName);
+          if (!matchingChannel) {
+            errors.push(`${rowNum}행 [채널]: 등록되지 않은 채널명입니다. (입력값: ${channelName})`);
+          }
+        }
+
+        const rowData: any = {
+          season_year: row['시즌년도']?.toString(),
+          season: row['시즌']?.toString(),
+          plan_date: row['일자'],
+          plan_time: row['시작시간'],
+          channel_name: channelName,
+          set_item_code: row['세트품번']?.toString(),
+          product_name: row['상품명']?.toString(),
+          additional_composition: row['추가구성']?.toString(),
+          additional_item_code: row['추가품번']?.toString(),
+          sale_price: Number(row['판매가'] || 0),
+          commission_rate: Number(row['수수료'] || 0),
+          target_quantity: Number(row['목표'] || 0),
+          total_order_quantity: Number(row['총주문수량'] || 0),
+          net_order_quantity: Number(row['순주문수량'] || 0),
+          total_sales: Number(row['총매출'] || 0),
+          net_sales: Number(row['순매출'] || 0),
+          achievement_rate: Number(row['달성율'] || 0),
+          pre_order_rate: Number(row['미리주문%'] || 0),
+          total_achievement_rate: Number(row['종합달성률%'] || 0),
+          size_85: Number(row['사이즈수량(85)'] || 0),
+          size_90: Number(row['사이즈수량(90)'] || 0),
+          size_95: Number(row['사이즈수량(95)'] || 0),
+          size_100: Number(row['사이즈수량(100)'] || 0),
+          size_105: Number(row['사이즈수량(105)'] || 0),
+          size_110: Number(row['사이즈수량(110)'] || 0),
+          size_115: Number(row['사이즈수량(115)'] || 0),
+          size_120: Number(row['사이즈수량(120)'] || 0),
+        };
+
+        // ID(UUID)가 있는 경우 포함 (업데이트용), 없는 경우 생략 (신규 등록용)
+        if (row['ID']) {
+          rowData.id = row['ID'];
+        }
+
+        return rowData;
+      });
+
+      if (errors.length > 0) {
+        // 에러가 너무 많으면 상위 10개만 표시
+        const displayErrors = errors.length > 10 
+          ? [...errors.slice(0, 10), `...외 ${errors.length - 10}건의 오류가 더 있습니다.`]
+          : errors;
+        setErrorMessage(displayErrors.join('\n'));
+        setShowErrorModal(true);
+        return;
+      }
+
+      const { error } = await supabase
+        .from('sales_plans_with_performance')
+        .upsert(formattedData, { onConflict: 'id' });
+
+      if (error) throw error;
+
+      setShowSuccessModal(true);
+      fetchData();
+    } catch (err) {
+      console.error('Upload error:', err);
+      setErrorMessage(err instanceof Error ? err.message : '업로드 중 알 수 없는 오류가 발생했습니다.');
+      setShowErrorModal(true);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -153,185 +348,76 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
     }
   };
 
-  const handleRowClick = (e: React.MouseEvent, performance: SalesPerformance) => {
-    setSelectedPerformance(performance);
-    setIsDetailModalOpen(true);
-    setIsSizeEditMode(false);
-    setSizeForm({
-      xs85: performance.xs85 || 0,
-      s90: performance.s90 || 0,
-      m95: performance.m95 || 0,
-      l100: performance.l100 || 0,
-      xl105: performance.xl105 || 0,
-      xxl110: performance.xxl110 || 0,
-      xxxl120: performance.xxxl120 || 0,
-      us_order: performance.us_order || 0,
-    });
+  const formatPrice = (price: number) => {
+    return price.toLocaleString() + '원';
   };
 
-  const calculateSizeTotal = (item: SalesPerformance) => {
-    if (!item) return 0;
+  const handleEdit = (e: React.MouseEvent, plan: ISalesPlanWithPerformance) => {
+    e.stopPropagation();
+    setIsEditMode(true);
+    setSelectedPlan(plan);
+    setIsRegistrationModalOpen(true);
+  };
+
+  const handleDelete = async (e: React.MouseEvent, planId: string) => {
+    e.stopPropagation();
+    setDeleteTargetId(planId);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
     
+    try {
+      const { error } = await supabase
+        .from('sales_plans_with_performance')
+        .delete()
+        .eq('id', deleteTargetId);
+
+      if (error) throw error;
+
+      setDeleteTargetId(null);
+      setShowSuccessModal(true);
+      fetchData();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleModalClose = () => {
+    setIsRegistrationModalOpen(false);
+    setIsEditMode(false);
+    setSelectedPlan(undefined);
+  };
+
+  const toggleRow = (id: string) => {
+    const newExpandedRows = new Set(expandedRows);
+    if (newExpandedRows.has(id)) {
+      newExpandedRows.delete(id);
+    } else {
+      newExpandedRows.add(id);
+    }
+    setExpandedRows(newExpandedRows);
+  };
+
+  const getAchievementColor = (rate: number) => {
+    if (rate >= 100) return 'text-green-600 bg-green-50 dark:bg-green-950/30 dark:text-green-400';
+    if (rate >= 80) return 'text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400';
+    if (rate >= 50) return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30 dark:text-yellow-400';
+    return 'text-red-600 bg-red-50 dark:bg-red-950/30 dark:text-red-400';
+  };
+
+  const filteredPlans = data.filter(plan => {
+    if (searchTerm === '') return true;
+    
+    const searchValue = searchTerm.toLowerCase();
     return (
-      Number(item.xs85 || 0) +
-      Number(item.s90 || 0) +
-      Number(item.m95 || 0) +
-      Number(item.l100 || 0) +
-      Number(item.xl105 || 0) +
-      Number(item.xxl110 || 0) +
-      Number(item.xxxl120 || 0) +
-      Number(item.us_order || 0)
+      (searchFilters.season && plan.season?.toLowerCase().includes(searchValue)) ||
+      (searchFilters.channel && plan.channel_name?.toLowerCase().includes(searchValue)) ||
+      (searchFilters.productName && plan.product_name?.toLowerCase().includes(searchValue)) ||
+      (searchFilters.setId && plan.set_item_code?.toLowerCase().includes(searchValue))
     );
-  };
-
-  const calculateSizePercent = (size: number, total: number) => {
-    if (!total) return 0;
-    return Number(((size / total) * 100).toFixed(1));
-  };
-
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return '';
-    try {
-      const [year, month, day] = dateString.split('-');
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    } catch (error) {
-      return dateString;
-    }
-  };
-
-  const formatTime = (timeString: string | null | undefined) => {
-    if (!timeString) return '';
-    try {
-      return timeString.substring(0, 5);
-    } catch (error) {
-      return timeString;
-    }
-  };
-
-  const formatPrice = (price: number): string => {
-    return price.toLocaleString('ko-KR');
-  };
-
-  const handleSizeEditToggle = () => {
-    if (!selectedPerformance) return;
-    if (!isSizeEditMode) {
-      setSizeForm({
-        xs85: selectedPerformance.xs85 || 0,
-        s90: selectedPerformance.s90 || 0,
-        m95: selectedPerformance.m95 || 0,
-        l100: selectedPerformance.l100 || 0,
-        xl105: selectedPerformance.xl105 || 0,
-        xxl110: selectedPerformance.xxl110 || 0,
-        xxxl120: selectedPerformance.xxxl120 || 0,
-        us_order: selectedPerformance.us_order || 0,
-      });
-    }
-    setIsSizeEditMode(prev => !prev);
-  };
-
-  const handleSizeInputChange = (key: keyof typeof sizeForm, value: string) => {
-    const num = Number(value.replace(/,/g, '')) || 0;
-    setSizeForm(prev => ({ ...prev, [key]: num }));
-  };
-
-  const handleSizeSave = async () => {
-    if (!selectedPerformance) return;
-
-    const total =
-      Number(sizeForm.xs85 || 0) +
-      Number(sizeForm.s90 || 0) +
-      Number(sizeForm.m95 || 0) +
-      Number(sizeForm.l100 || 0) +
-      Number(sizeForm.xl105 || 0) +
-      Number(sizeForm.xxl110 || 0) +
-      Number(sizeForm.xxxl120 || 0) +
-      Number(sizeForm.us_order || 0);
-
-    const achievementRate = selectedPerformance.target_quantity
-      ? Number(((total / selectedPerformance.target_quantity) * 100).toFixed(1))
-      : 0;
-
-    try {
-      const response = await fetch(`/api/sales/performance/list/${selectedPerformance.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          performance: total,
-          achievement_rate: achievementRate,
-          xs85: sizeForm.xs85,
-          s90: sizeForm.s90,
-          m95: sizeForm.m95,
-          l100: sizeForm.l100,
-          xl105: sizeForm.xl105,
-          xxl110: sizeForm.xxl110,
-          xxxl120: sizeForm.xxxl120,
-          us_order: sizeForm.us_order,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || result.message || '사이즈 정보 수정에 실패했습니다.');
-      }
-
-      const updated: SalesPerformance = {
-        ...selectedPerformance,
-        performance: total,
-        achievement_rate: achievementRate,
-        xs85: sizeForm.xs85,
-        s90: sizeForm.s90,
-        m95: sizeForm.m95,
-        l100: sizeForm.l100,
-        xl105: sizeForm.xl105,
-        xxl110: sizeForm.xxl110,
-        xxxl120: sizeForm.xxxl120,
-        us_order: sizeForm.us_order,
-      };
-
-      setSelectedPerformance(updated);
-      setData(prev =>
-        prev.map(item => (item.id === updated.id ? updated : item))
-      );
-      setIsSizeEditMode(false);
-      alert('사이즈별 수량이 수정되었습니다.');
-    } catch (err) {
-      console.error('사이즈 정보 수정 오류:', err);
-      alert(err instanceof Error ? err.message : '사이즈 정보 수정 중 오류가 발생했습니다.');
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      const response = await fetch(`/api/sales/performance/list/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ is_active: false }),
-      });
-
-      if (!response.ok) {
-        throw new Error('삭제 처리 중 오류가 발생했습니다.');
-      }
-
-      // 성공적으로 삭제된 후 데이터 새로고침
-      await fetchData();
-      setIsDeleteModalOpen(false);
-      setPerformanceToDelete(null);
-    } catch (error) {
-      console.error('Error deleting performance:', error);
-      alert('삭제 처리 중 오류가 발생했습니다.');
-    }
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent, item: SalesPerformance) => {
-    e.stopPropagation(); // 행 클릭 이벤트 전파 방지
-    setPerformanceToDelete(item);
-    setIsDeleteModalOpen(true);
-  };
+  });
 
   if (loading) {
     return (
@@ -347,17 +433,12 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-lg">
-            <div className="flex items-center space-x-3">
-              <svg className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <h3 className="text-lg font-medium text-red-800">오류 발생</h3>
-            </div>
-            <p className="mt-2 text-sm text-red-700">{error}</p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h3 className="text-lg font-medium text-red-800">오류 발생</h3>
+            <p className="mt-2 text-sm text-red-700">{error.message}</p>
             <button
-              onClick={() => fetchData()}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              onClick={fetchData}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
             >
               다시 시도
             </button>
@@ -367,218 +448,433 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
     );
   }
 
-  if (!data.length) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 max-w-lg">
-            <div className="flex items-center space-x-3">
-              <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-              </svg>
-              <h3 className="text-lg font-medium text-gray-900">데이터가 없습니다</h3>
-            </div>
-            <p className="mt-2 text-sm text-gray-500">표시할 판매실적이 없습니다.</p>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   return (
     <DashboardLayout>
-      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6 flex justify-between items-center border-b border-gray-200">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">
+      <div className="w-full px-2 sm:px-4">
+        <div className="bg-card shadow overflow-hidden sm:rounded-lg">
+          <div className="px-4 py-5 sm:px-6 flex flex-col md:flex-row justify-between items-center border-b border-border gap-4">
+            <h3 className="text-lg font-semibold text-foreground">
               판매실적 목록
             </h3>
-            <div className="flex items-center gap-4">
-              {/* 검색 필터 라디오 버튼 */}
-              <div className="flex items-center gap-4">
-                {searchFilterOptions.map(({ key, label }) => (
-                  <label key={key} className="inline-flex items-center">
-                    <input
-                      type="radio"
-                      className="form-radio h-4 w-4 text-blue-600"
-                      checked={selectedFilter === key}
-                      onChange={() => setSelectedFilter(key)}
-                      name="searchFilter"
-                    />
-                    <span className="ml-2 text-sm text-gray-600">{label}</span>
-                  </label>
-                ))}
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={searchFilters.season}
+                    onChange={(e) => setSearchFilters(prev => ({ ...prev, season: e.target.checked }))}
+                    className="form-checkbox h-4 w-4 text-blue-600"
+                  />
+                  <span className="ml-2 text-sm">시즌</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={searchFilters.channel}
+                    onChange={(e) => setSearchFilters(prev => ({ ...prev, channel: e.target.checked }))}
+                    className="form-checkbox h-4 w-4 text-blue-600"
+                  />
+                  <span className="ml-2 text-sm">채널</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={searchFilters.productName}
+                    onChange={(e) => setSearchFilters(prev => ({ ...prev, productName: e.target.checked }))}
+                    className="form-checkbox h-4 w-4 text-blue-600"
+                  />
+                  <span className="ml-2 text-sm">상품명</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={searchFilters.setId}
+                    onChange={(e) => setSearchFilters(prev => ({ ...prev, setId: e.target.checked }))}
+                    className="form-checkbox h-4 w-4 text-blue-600"
+                  />
+                  <span className="ml-2 text-sm">세트품번</span>
+                </label>
               </div>
-              {/* 검색창 */}
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="검색어를 입력하세요"
-                  className="pl-10 pr-4 py-2 border rounded-lg w-80"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  placeholder="검색어를 입력하세요"
+                  className="pl-10 pr-4 py-2 border border-border rounded-lg w-64 md:w-80 text-sm bg-card text-foreground"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch();
+                    }
+                  }}
                 />
                 <div className="absolute left-3 top-2.5">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
               </div>
               <button
                 onClick={handleSearch}
-                className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
               >
                 검색
               </button>
+
+              {/* 엑셀 통합 버튼 및 드롭다운 */}
+              <div className="relative border-l border-border pl-4" ref={excelMenuRef}>
+                {/* <button
+                  onClick={() => setIsExcelMenuOpen(!isExcelMenuOpen)}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm flex items-center gap-2 transition-all shadow-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  엑셀
+                  <svg className={`w-3 h-3 transition-transform ${isExcelMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button> */}
+
+                {isExcelMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          handleDownloadTemplate();
+                          setIsExcelMenuOpen(false);
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-sm text-foreground dark:text-gray-200 hover:bg-muted dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
+                      >
+                        <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        양식 다운로드
+                      </button>
+                      
+                      <label
+                        htmlFor="excel-upload"
+                        className="w-full px-4 py-2.5 text-left text-sm text-foreground dark:text-gray-200 hover:bg-muted dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer transition-colors"
+                      >
+                        <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        엑셀 업로드
+                      </label>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".xlsx, .xls"
+                        onChange={(e) => {
+                          handleExcelUpload(e);
+                          setIsExcelMenuOpen(false);
+                        }}
+                        className="hidden"
+                        id="excel-upload"
+                      />
+
+                      <button
+                        onClick={handleExportExcel}
+                        className="w-full px-4 py-2.5 text-left text-sm text-foreground dark:text-gray-200 hover:bg-muted dark:hover:bg-gray-700 flex items-center gap-2 transition-colors border-t border-gray-100 dark:border-gray-700"
+                      >
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        엑셀 출력
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* <button
+                onClick={() => setIsRegistrationModalOpen(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+              >
+                계획 추가
+              </button> */}
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">운영시즌</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">일자</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품코드</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">판매채널</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">채널상세</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">카테고리</th>
-                  <th className="px-10 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품명</th>
-                  <th className="px-10 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">추가구성</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">세트품번</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">목표</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">실적</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">달성률</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">판매금액</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {currentItems.map((item) => (
-                  <tr 
-                    key={item.id} 
-                    className="hover:bg-gray-50 cursor-pointer transition-colors duration-150 ease-in-out"
+          {/* 카드형 리스트 */}
+          <div className="p-4 space-y-3">
+            {data.map((plan) => {
+              const isExpanded = expandedRows.has(plan.id);
+              const achievementRate = plan.achievement_rate || 0;
+              
+              return (
+                <div 
+                  key={plan.id} 
+                  className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+                >
+                  {/* 기본 정보 행 */}
+                  <div 
+                    className="flex items-center p-4 cursor-pointer hover:bg-muted"
+                    onClick={() => toggleRow(plan.id)}
                   >
-                    <td 
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{item.season}</td>
-                    <td 
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{formatDate(item.plan_date)}</td>
-                    <td 
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{formatTime(item.plan_time)}</td>
-                    <td 
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{item.product_code}</td>
-                    <td 
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{item.channel_name}</td>
-                    <td 
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{item.channel_detail}</td>
-                    <td 
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{item.product_category}</td>
-                    <td 
-                      className="px-1 py-4 whitespace-nowrap text-sm text-gray-900 text-center"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{item.set_name}</td>
-                    <td 
-                      className="px-1 py-4 whitespace-nowrap text-sm text-gray-900 text-center"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{item.quantity_composition || '-'}</td>
-                    <td 
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{item.set_id}</td>
-                    <td 
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{formatNumber(item.target_quantity)}개</td>
-                    <td 
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{formatNumber(item.performance)}개</td>
-                    <td 
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{item.achievement_rate}%</td>
-                    <td 
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"
-                      onClick={(e) => handleRowClick(e, item)}
-                    >{formatPrice(item.sale_price * item.performance)}원</td>
-                    <td className="px-1 py-1 whitespace-nowrap text-sm text-gray-500">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPerformanceToDelete(item);
-                          setIsDeleteModalOpen(true);
-                        }}
-                        className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-                        title="삭제"
+                    {/* 확장 아이콘 */}
+                    <div className="flex-shrink-0 mr-3">
+                      <svg 
+                        className={`w-5 h-5 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
                       >
-                        <svg 
-                          className="w-5 h-5 text-gray-400 hover:text-red-500" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
-                        >
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            strokeWidth={2} 
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
-                          />
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+
+                    {/* 핵심 정보 */}
+                    <div className="flex-1 flex items-center text-sm min-w-0">
+                      {/* 왼쪽 그룹: 시즌, 일자, 채널 (고정 너비) */}
+                      <div className="flex items-center gap-4 w-[320px] flex-shrink-0">
+                        {/* 시즌 */}
+                        <div className="w-16 flex-shrink-0">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-purple-100 dark:bg-purple-950/50 text-purple-800 dark:text-purple-300 w-full justify-center">
+                            {plan.season_year ? `${plan.season_year.slice(-2)}${plan.season || ''}` : '-'}
+                          </span>
+                        </div>
+
+                        {/* 일자 */}
+                        <div className="text-foreground font-semibold w-28 flex-shrink-0">
+                          {plan.plan_date ? format(new Date(plan.plan_date), 'yy/MM/dd') : '-'}
+                          <span className="text-muted-foreground ml-2 text-xs">{plan.plan_time?.substring(0, 5)}</span>
+                        </div>
+
+                        {/* 채널 */}
+                        <div className="w-24 flex-shrink-0">
+                          <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 w-full justify-center">
+                            {plan.channel_name}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 중앙: 상품명 (남은 공간 모두 차지) */}
+                      <div className="flex-1 font-semibold text-foreground px-4 min-w-0">
+                        {plan.product_name}
+                      </div>
+
+                      {/* 오른쪽 그룹: 수량 정보 (고정 너비로 정렬 유지) */}
+                      <div className="flex items-center gap-4 flex-shrink-0 w-[420px] justify-end">
+                        {/* 목표 */}
+                        <div className="w-20 text-center">
+                          <div className="text-[10px] text-muted-foreground mb-0.5">목표</div>
+                          <span className="inline-flex items-center px-2 py-1 rounded-md text-sm font-bold bg-muted text-foreground w-full justify-center">
+                            {plan.target_quantity?.toLocaleString()}
+                          </span>
+                        </div>
+
+                        {/* 총주문 */}
+                        <div className="w-20 text-center">
+                          <div className="text-[10px] text-muted-foreground mb-0.5">총주문</div>
+                          <span className="inline-flex items-center px-2 py-1 rounded-md text-sm font-bold bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 w-full justify-center">
+                            {plan.total_order_quantity?.toLocaleString()}
+                          </span>
+                        </div>
+
+                        {/* 순주문 */}
+                        <div className="w-20 text-center">
+                          <div className="text-[10px] text-muted-foreground mb-0.5">순주문</div>
+                          <span className="inline-flex items-center px-2 py-1 rounded-md text-sm font-bold bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 w-full justify-center">
+                            {plan.net_order_quantity?.toLocaleString()}
+                          </span>
+                        </div>
+
+                        {/* 달성률 */}
+                        <div className="w-24 text-center">
+                          <div className="text-[10px] text-muted-foreground mb-0.5">달성률</div>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-sm font-bold ${getAchievementColor(achievementRate)} w-full justify-center`}>
+                            {achievementRate.toFixed(1)}%
+                          </span>
+                        </div>
+
+                        {/* 관리 버튼 */}
+                        <div className="flex gap-1 ml-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(e, plan);
+                            }}
+                            className="p-1.5 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-600 hover:text-white transition-all"
+                            title="수정"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(e, plan.id as any);
+                            }}
+                            className="p-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-600 hover:text-white transition-all"
+                            title="삭제"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 확장된 상세 정보 */}
+                  {isExpanded && (
+                    <div className="border-t border-border bg-gradient-to-br from-muted to-blue-50/30 dark:to-blue-950/20 p-6 animate-in slide-in-from-top-2 duration-200">
+                      {/* 상단: 상품, 판매, 실적 정보 */}
+                      <div className="grid grid-cols-3 gap-6 mb-6">
+                        {/* 상품 정보 */}
+                        <div className="bg-card rounded-lg p-4 shadow-sm border border-border">
+                          <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-3 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                            상품 정보
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">세트품번</span>
+                              <span className="font-medium text-foreground">{plan.set_item_code || '-'}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">추가구성</span>
+                              <span className="font-medium text-foreground break-words text-right max-w-[200px]">
+                                {plan.additional_composition || '-'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">추가품번</span>
+                              <span className="font-medium text-foreground">{plan.additional_item_code || '-'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 판매 정보 */}
+                        <div className="bg-card rounded-lg p-4 shadow-sm border border-border">
+                          <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-3 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            판매 정보
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">판매가</span>
+                              <span className="font-bold text-emerald-600">{plan.sale_price?.toLocaleString()}원</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">수수료</span>
+                              <span className="font-medium text-foreground">{plan.commission_rate}%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">총매출</span>
+                              <span className="font-bold text-indigo-600">{plan.total_sales?.toLocaleString()}원</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">순매출</span>
+                              <span className="font-bold text-blue-600">{plan.net_sales?.toLocaleString()}원</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 실적 정보 */}
+                        <div className="bg-card rounded-lg p-4 shadow-sm border border-border">
+                          <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-3 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            실적 정보
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">총주문수량</span>
+                              <span className="font-semibold text-foreground">{plan.total_order_quantity?.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">순주문수량</span>
+                              <span className="font-semibold text-foreground">{plan.net_order_quantity?.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">미리주문%</span>
+                              <span className="font-semibold text-purple-600">{plan.pre_order_rate?.toFixed(1)}%</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">종합달성률%</span>
+                              <span className={`font-bold ${getAchievementColor(plan.total_achievement_rate || 0)} px-2 py-0.5 rounded`}>
+                                {plan.total_achievement_rate?.toFixed(1)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 하단: 사이즈별 수량 */}
+                      <div className="bg-card rounded-lg p-5 shadow-sm border border-border">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-4 flex items-center gap-2">
+                          <svg className="w-4 h-4 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                          </svg>
+                          사이즈별 수량
+                        </h4>
+                        <div className="grid grid-cols-8 gap-3">
+                          {[
+                            { label: '85(XS)', value: plan.size_85 || 0 },
+                            { label: '90(S)', value: plan.size_90 || 0 },
+                            { label: '95(M)', value: plan.size_95 || 0 },
+                            { label: '100(L)', value: plan.size_100 || 0 },
+                            { label: '105(XL)', value: plan.size_105 || 0 },
+                            { label: '110(XXL)', value: plan.size_110 || 0 },
+                            { label: '115(3XL)', value: plan.size_115 || 0 },
+                            { label: '120(4XL)', value: plan.size_120 || 0 },
+                          ].map((size, idx) => {
+                            const total = (plan.size_85 || 0) + (plan.size_90 || 0) + (plan.size_95 || 0) + 
+                                        (plan.size_100 || 0) + (plan.size_105 || 0) + (plan.size_110 || 0) + 
+                                        (plan.size_115 || 0) + (plan.size_120 || 0);
+                            const percentage = total > 0 ? ((size.value / total) * 100).toFixed(1) : '0.0';
+
+                            return (
+                              <div 
+                                key={idx} 
+                                className="text-center p-3 rounded-lg border-2 transition-all bg-muted border-border"
+                              >
+                                <div className="text-xs font-bold mb-1 text-muted-foreground">
+                                  {size.label}
+                                </div>
+                                <div className="text-base font-bold text-foreground">
+                                  {size.value.toLocaleString()}
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {percentage}%
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          <div className="bg-white px-4 py-3 flex items-center justify-center border-t border-gray-200 sm:px-6">
+          <div className="bg-card px-4 py-3 flex items-center justify-center border-t border-border">
             <nav className="flex items-center justify-between">
               <button
-                onClick={() => {
-                  if (currentPage > 1) {
-                    setCurrentPage(prev => prev - 1);
-                  }
-                }}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md 
-                  ${currentPage === 1 
-                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
-                    : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300'
-                  }`}
+                className="relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-foreground bg-card hover:bg-muted border border-border disabled:opacity-50"
               >
                 이전
               </button>
-              <span className="mx-4 text-sm text-gray-700">
-                {currentPage} / {totalPages}
+              <span className="mx-4 text-sm text-foreground">
+                {currentPage} / {totalPages || 1}
               </span>
               <button
-                onClick={() => {
-                  if (currentPage < totalPages) {
-                    setCurrentPage(prev => prev + 1);
-                  }
-                }}
-                disabled={currentPage >= totalPages}
-                className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md 
-                  ${currentPage >= totalPages 
-                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
-                    : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300'
-                  }`}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage >= totalPages || totalPages === 0}
+                className="relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-foreground bg-card hover:bg-muted border border-border disabled:opacity-50"
               >
                 다음
               </button>
@@ -587,316 +883,53 @@ export default function SalesPerformanceListClient({ initialData, channels }: Pr
         </div>
       </div>
 
-      {/* 상세 정보 모달 */}
-      {isDetailModalOpen && selectedPerformance && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-        >
-          <div 
-            className="bg-white rounded-xl p-6 max-w-5xl w-full max-h-[80vh] overflow-y-auto shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* 모달 헤더 */}
-            <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-800">판매실적 상세정보</h2>
-              <button
-                onClick={() => setIsDetailModalOpen(false)}
-                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* 모달 컨텐츠 */}
-            <div className="grid grid-cols-12 gap-4">
-              {/* 기본 정보 & 상품 정보 */}
-              <div className="col-span-8 grid grid-cols-2 gap-4">
-                {/* 상품명 */}
-                <div className="col-span-2 bg-blue-50 p-4 rounded-lg">
-                  <h3 className="text-sm font-semibold text-gray-600 mb-2">상품명</h3>
-                  <p className="text-xl font-bold text-blue-800">{selectedPerformance.set_name}</p>
-                </div>
-
-                {/* 기본 정보 */}
-                <div className="col-span-2 bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-sm font-semibold text-gray-800 mb-3">기본 정보</h3>
-                  <div className="grid grid-cols-4 gap-4 text-sm p-4 bg-blue-50/50 rounded-lg border border-blue-100">
-                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100  transition-all">
-                      <p className="text-blue-600 font-semibold">일자</p>
-                      <p className="font-medium text-gray-800">{formatDate(selectedPerformance.plan_date)}</p>
-                    </div>
-                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100 transition-all">
-                      <p className="text-blue-600 font-semibold">시간</p>
-                      <p className="font-medium text-gray-800">{formatTime(selectedPerformance.plan_time)}</p>
-                    </div>
-  
-                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100  transition-all">
-                      <p className="text-blue-600 font-semibold">카테고리</p>
-                      <p className="font-medium text-gray-800">{selectedPerformance.product_category}</p>
-                    </div>
-                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100  transition-all">
-                      <p className="text-blue-600 font-semibold">상품코드</p>
-                      <p className="font-medium text-gray-800">{selectedPerformance.product_code}</p>
-                    </div>
-                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100  transition-all">
-                      <p className="text-blue-600 font-semibold">판매채널</p>
-                      <p className="font-medium text-gray-800">{selectedPerformance.channel_name}</p>
-                    </div>
-                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100  transition-all">
-                      <p className="text-blue-600 font-semibold">채널상세</p>
-                      <p className="font-medium text-gray-800">{selectedPerformance.channel_detail}</p>
-                    </div>
-                    <div className="space-y-1 p-3 bg-white rounded shadow-sm border border-blue-100  transition-all">
-                      <p className="text-blue-600 font-semibold">세트품번</p>
-                      <p className="font-medium text-gray-800">{selectedPerformance.set_id}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 실적 정보 */}
-                <div className="col-span-2 bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-sm font-semibold text-gray-800 mb-3">실적 정보</h3>
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="bg-white p-4 rounded-lg text-center">
-                      <p className="text-blue-600 font-semibold">목표</p>
-                      <p className="text-lg font-bold">{formatNumber(selectedPerformance.target_quantity)}개</p>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg text-center">
-                      <p className="text-blue-600 font-semibold">실적</p>
-                      <p className="text-lg font-bold ">{formatNumber(selectedPerformance.performance)}개</p>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg text-center">
-                      <p className="text-blue-600 font-semibold">달성률</p>
-                      <p className="text-lg font-bold ">{selectedPerformance.achievement_rate}%</p>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg text-center">
-                      <p className="text-blue-600 font-semibold">전환률</p>
-                      <p className="text-lg font-bold ">{selectedPerformance.temperature}%</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 사이즈별 정보 */}
-              <div className="col-span-4 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-blue-600">사이즈별 정보</h3>
-                  <div className="space-x-2">
-                    {isSizeEditMode && (
-                      <button
-                        onClick={handleSizeSave}
-                        className="px-3 py-1 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700"
-                      >
-                        저장
-                      </button>
-                    )}
-                    <button
-                      onClick={handleSizeEditToggle}
-                      className="px-3 py-1 text-xs font-medium rounded-md border border-blue-400 text-blue-600 hover:bg-blue-50"
-                    >
-                      {isSizeEditMode ? '취소' : '수정'}
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {(() => {
-                    const viewSizeMapping = [
-                      { label: 'XS(85)', key: 'xs85' as const, value: selectedPerformance.xs85 },
-                      { label: 'S(90)', key: 's90' as const, value: selectedPerformance.s90 },
-                      { label: 'M(95)', key: 'm95' as const, value: selectedPerformance.m95 },
-                      { label: 'L(100)', key: 'l100' as const, value: selectedPerformance.l100 },
-                      { label: 'XL(105)', key: 'xl105' as const, value: selectedPerformance.xl105 },
-                      { label: 'XXL(110)', key: 'xxl110' as const, value: selectedPerformance.xxl110 },
-                      { label: 'XXXL(120)', key: 'xxxl120' as const, value: selectedPerformance.xxxl120 }
-                    ];
-
-                    const total = isSizeEditMode
-                      ? Number(sizeForm.xs85 || 0) +
-                        Number(sizeForm.s90 || 0) +
-                        Number(sizeForm.m95 || 0) +
-                        Number(sizeForm.l100 || 0) +
-                        Number(sizeForm.xl105 || 0) +
-                        Number(sizeForm.xxl110 || 0) +
-                        Number(sizeForm.xxxl120 || 0) +
-                        Number(sizeForm.us_order || 0)
-                      : calculateSizeTotal(selectedPerformance);
-
-                    const maxValue = Math.max(
-                      ...viewSizeMapping.map(size =>
-                        isSizeEditMode ? (size.key in sizeForm ? (sizeForm as any)[size.key] || 0 : size.value || 0) : size.value || 0
-                      )
-                    );
-
-                    return (
-                      <>
-                        {viewSizeMapping.map((size, index) => {
-                          const value = isSizeEditMode
-                            ? (sizeForm as any)[size.key] || 0
-                            : size.value || 0;
-                          const percent = calculateSizePercent(value, total);
-
-                          return (
-                            <div
-                              key={index}
-                              className="flex items-center bg-white p-2.5 rounded-md text-sm shadow-sm border border-blue-100"
-                            >
-                              <span className="w-20 font-medium text-gray-700">{size.label}</span>
-                              {isSizeEditMode ? (
-                                <input
-                                  type="number"
-                                  className="ml-auto w-20 h-6 px-2 border rounded-md text-right text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                  value={sizeForm[size.key] || 0}
-                                  onChange={(e) => handleSizeInputChange(size.key, e.target.value)}
-                                />
-                              ) : (
-                                <>
-                                  <div className="flex-1 mx-3 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-full ${
-                                        value === maxValue && value !== 0 ? 'bg-red-500' : 'bg-blue-500'
-                                      }`}
-                                      style={{ width: `${percent}%` }}
-                                    ></div>
-                                  </div>
-                                  <span
-                                    className={`w-28 text-right text-sm font-medium ${
-                                      value === maxValue && value !== 0 ? 'text-red-600' : 'text-gray-700'
-                                    }`}
-                                  >
-                                    {formatNumber(value)}개 <span className="text-gray-500">({percent}%)</span>
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          );
-                        })}
-
-                        {/* 미주 주문량 표시 */}
-                        <div className="mt-4 pt-4 border-t-2 border-blue-200">
-                          <div className="flex items-center bg-yellow-50 p-2.5 rounded-md text-sm shadow-sm border border-yellow-200">
-                            <span className="w-20 font-medium text-yellow-800">미주 주문</span>
-                            {isSizeEditMode ? (
-                              <input
-                                type="number"
-                                className="ml-auto w-24 h-7 px-2 border rounded-md text-right text-xs focus:outline-none focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                value={sizeForm.us_order || 0}
-                                onChange={(e) => handleSizeInputChange('us_order', e.target.value)}
-                              />
-                            ) : (
-                              <>
-                                <div className="flex-1 mx-3 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full rounded-full bg-yellow-500"
-                                    style={{
-                                      width: `${calculateSizePercent(
-                                        selectedPerformance.us_order || 0,
-                                        total
-                                      )}%`,
-                                    }}
-                                  ></div>
-                                </div>
-                                <span className="w-28 text-right text-sm font-medium text-yellow-800">
-                                  {formatNumber(selectedPerformance.us_order || 0)}개
-                                  <span className="text-gray-500">
-                                    (
-                                    {calculateSizePercent(
-                                      selectedPerformance.us_order || 0,
-                                      total
-                                    )}
-                                    %)
-                                  </span>
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="border-t border-blue-200 mt-3 pt-3">
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium text-gray-700">총 합계</span>
-                            <span className="text-lg font-bold text-blue-600">
-                              {formatNumber(total)}개
-                            </span>
-                          </div>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      {isRegistrationModalOpen && (
+        isEditMode && selectedPlan ? (
+          <SalesCombinedEditModal
+            isOpen={isRegistrationModalOpen}
+            onClose={handleModalClose}
+            onSuccess={() => {
+              fetchData();
+              handleModalClose();
+            }}
+            editData={selectedPlan}
+            channels={channels}
+          />
+        ) : (
+          <SalesPlanRegistrationModal
+            isOpen={isRegistrationModalOpen}
+            onClose={handleModalClose}
+            onSuccess={() => {
+              fetchData();
+              handleModalClose();
+            }}
+            editData={undefined}
+            channels={channels}
+          />
+        )
       )}
 
-      {/* 팝업 메뉴 */}
-      {selectedPerformance && showPopup && (
-        <div 
-          className="fixed bg-white shadow-lg rounded-lg z-50 border border-gray-200"
-          style={{
-            left: `${popupPosition.x}px`,
-            top: `${popupPosition.y}px`,
-            transform: 'translateX(-50%)'
-          }}
-        >
-          <div className="flex flex-row gap-1 p-1">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(selectedPerformance.id);
-                setShowPopup(false);
-              }}
-              className="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
-            >
-              삭제
-            </button>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmModal
+        isOpen={!!deleteTargetId}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={confirmDelete}
+        title="판매계획 삭제"
+        description={`정말로 이 판매계획을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+      />
 
-      {/* 팝업 외부 클릭 시 닫기를 위한 오버레이 */}
-      {showPopup && (
-        <div 
-          className="fixed inset-0 z-40"
-          onClick={() => setShowPopup(false)}
-        />
-      )}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title="처리 완료"
+        description="성공적으로 처리되었습니다."
+      />
 
-      {/* 삭제 확인 모달은 그대로 유지 */}
-      {isDeleteModalOpen && performanceToDelete && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          onClick={() => setIsDeleteModalOpen(false)}
-        >
-          <div 
-            className="bg-white rounded-lg p-6 max-w-sm w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-medium text-gray-900 mb-4">삭제 확인</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              정말로 이 판매실적을 삭제하시겠습니까?<br />
-              상품명: {performanceToDelete.set_name}<br />
-              세트품번: {performanceToDelete.set_id}
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-              >
-                취소
-              </button>
-              <button
-                onClick={() => handleDelete(performanceToDelete.id)}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-              >
-                삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ErrorModal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title="업로드 실패"
+        description={errorMessage}
+      />
     </DashboardLayout>
   );
-} 
+}

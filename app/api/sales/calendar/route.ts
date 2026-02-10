@@ -1,42 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
 
-interface ISalesCalendarResponse {
-  id: string;
-  plan_date: string;
-  plan_time: string;
-  channel_detail: string;
-  product_name: string;
-  product_category: string;
-  target_quantity: number;
-  quantity_composition: string;
-  sale_price: number;
-  commission_rate: number;
-
-  sales_channels?: {
-    channel_name: string;
-  };
-  set_products?: {
-    set_name: string;
-  };
-}
-
-interface IFormattedSalesPlan {
-  id: string;
-  plan_date: string;
-  plan_time: string;
-  channel_name: string;
-  channel_detail: string;
-  product_name: string;
-  product_category: string;
-  target_quantity: number;
-  quantity_composition: string;
-  sale_price: number;
-  commission_rate: number;
-  set_name: string;
-
-}
-
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -56,48 +20,35 @@ export async function GET(request: NextRequest) {
       .split('T')[0];
 
     const { data, error } = await supabase
-      .from('sales_plans')
-      .select(`
-        id,
-        plan_date,
-        plan_time,
-        channel_detail,
-        product_name,
-        product_category,
-        target_quantity,
-        quantity_composition,
-        sale_price,
-        commission_rate,
-        sales_channels (
-          channel_name
-        ),
-
-        set_products (
-          set_name
-        )
-      `)
+      .from('sales_plans_with_performance')
+      .select('*')
       .gte('plan_date', startDate)
       .lte('plan_date', endDate)
-      .eq('is_active', true);
+      .order('plan_date', { ascending: true })
+      .order('plan_time', { ascending: true });
 
     if (error) {
       throw error;
     }
 
-    const formattedData = (data as unknown as ISalesCalendarResponse[]).map((plan): IFormattedSalesPlan => ({
+    const formattedData = (data || []).map((plan: any) => ({
       id: plan.id,
       plan_date: plan.plan_date,
       plan_time: plan.plan_time,
-      channel_name: plan.sales_channels?.channel_name || '',
-      channel_detail: plan.channel_detail,
-      product_name: plan.product_name,
-      product_category: plan.product_category,
-      target_quantity: plan.target_quantity,
-      quantity_composition: plan.quantity_composition,
-      sale_price: plan.sale_price,
-
-      commission_rate: plan.commission_rate,
-      set_name: plan.set_products?.set_name || ''
+      channel_name: plan.channel_name || '',
+      product_name: plan.product_name || '',
+      additional_composition: plan.additional_composition || '',
+      set_item_code: plan.set_item_code || '',
+      target_quantity: plan.target_quantity || 0,
+      sale_price: plan.sale_price || 0,
+      commission_rate: plan.commission_rate || 0,
+      season_year: plan.season_year || '',
+      season: plan.season || '',
+      total_order_quantity: plan.total_order_quantity || 0,
+      net_order_quantity: plan.net_order_quantity || 0,
+      total_sales: plan.total_sales || 0,
+      net_sales: plan.net_sales || 0,
+      achievement_rate: plan.achievement_rate || 0,
     }));
 
     return NextResponse.json({
@@ -116,4 +67,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

@@ -14,7 +14,6 @@ export async function GET(request: NextRequest) {
         *,
         set_info:set_products(id, set_id, set_name)
       `, { count: 'exact' })
-      .eq('is_active', true)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -44,7 +43,6 @@ export async function POST(request: NextRequest) {
     const { error } = await supabase
       .from('sales_plans')
       .insert([{ ...data,
-         is_active: true,
          is_undecided: data.is_undecided || false
          }]);
 

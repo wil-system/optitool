@@ -39,8 +39,7 @@ export async function PUT(
       .update({
         channel_name: body.channel_name,
         channel_details: body.channel_details,
-        remarks: body.remarks,
-        is_active: body.is_active
+        remarks: body.remarks
       })
       .eq('channel_code', code)
       .select()

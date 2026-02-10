@@ -53,11 +53,28 @@ const parseSizeData = (sizeString: string | null): { size: string; quantity: num
 
 export async function GET(request: Request) {
   try {
-    const { data, error } = await supabase
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '0', 10);
+    const size = parseInt(searchParams.get('size') || '12', 10);
+    const searchTerm = searchParams.get('searchTerm') || '';
+    const searchFields = searchParams.get('searchFields')?.split(',').filter(Boolean) || [];
+
+    let query = supabase
       .from('operational_quantities')
-      .select('*')
-      .eq('is_active', true)
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
+
+    // 검색어가 있는 경우 (콤마로 구분된 다중 검색어 처리)
+    if (searchTerm && searchFields.length > 0) {
+      const searchTerms = searchTerm.split(',').map(term => term.trim()).filter(Boolean);
+      const conditions = searchTerms.flatMap(term =>
+        searchFields.map(field => `${field}.ilike.%${term}%`)
+      );
+      query = query.or(conditions.join(','));
+    }
+
+    // 페이지네이션 적용
+    const { data, error, count } = await query.range(page * size, (page + 1) * size - 1);
 
     if (error) throw error;
 
@@ -82,17 +99,35 @@ export async function GET(request: Request) {
 
       // 사이즈 정렬
       sizes.sort((a, b) => {
-        // 숫자 사이즈 처리
-        const numA = parseInt(a.size);
-        const numB = parseInt(b.size);
-        if (!isNaN(numA) && !isNaN(numB)) {
-          return numA - numB;
-        }
+        const cleanA = (a.size || '').toUpperCase().trim();
+        const cleanB = (b.size || '').toUpperCase().trim();
+
+        // 숫자 사이즈 처리 (예: 85, 90...) - "2XL" 같은 값은 숫자로 취급하면 안 됨
+        const isNumA = /^\d+$/.test(cleanA);
+        const isNumB = /^\d+$/.test(cleanB);
+        const numA = isNumA ? parseInt(cleanA, 10) : NaN;
+        const numB = isNumB ? parseInt(cleanB, 10) : NaN;
+        if (isNumA && isNumB) return numA - numB;
+        if (isNumA) return -1;
+        if (isNumB) return 1;
+
         // FREE 사이즈 처리
-        if (a.size.toUpperCase().includes('FREE')) return 1;
-        if (b.size.toUpperCase().includes('FREE')) return -1;
-        // 일반 문자열 사이즈 처리
-        return a.size.localeCompare(b.size);
+        if (cleanA.includes('FREE')) return 1;
+        if (cleanB.includes('FREE')) return -1;
+
+        // 문자열 사이즈 처리 (XS~4XL)
+        const order = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', '4XL'];
+        const getIndex = (s: string) => {
+          if (s === '2XL') return order.indexOf('XXL'); // 2XL과 XXL을 동일하게 취급
+          return order.indexOf(s);
+        };
+        const idxA = getIndex(cleanA);
+        const idxB = getIndex(cleanB);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+
+        return cleanA.localeCompare(cleanB);
       });
 
       return {
@@ -107,7 +142,11 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      data: transformedData
+      data: transformedData,
+      totalCount: count || 0,
+      totalPages: count ? Math.ceil(count / size) : 0,
+      currentPage: page,
+      hasMore: count ? (page + 1) * size < count : false
     });
   } catch (error) {
     console.error('운영수량 목록 조회 에러:', error);

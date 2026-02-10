@@ -14,7 +14,6 @@ export async function GET(request: Request) {
     let query = supabase
       .from('set_products')
       .select('*', { count: 'exact' })
-      .eq('is_active', true)
       .order('created_at', { ascending: false });
 
     // 검색 조건 추가
@@ -25,40 +24,51 @@ export async function GET(request: Request) {
       query = query.or(searchConditions.join(','));
     }
 
-    // 페이지네이션 여부에 따라 분기
+    const { data, error, count } = size 
+      ? await query.range(page * size, (page + 1) * size - 1)
+      : await query;
+
+    if (error) throw error;
+
+    // 개별 상품 정보 조회를 위한 item_number 수집
+    const allItemNumbers = new Set<string>();
+    data?.forEach(set => {
+      set.individual_product_ids?.forEach((idStr: string) => {
+        const [itemNumber] = idStr.split('#');
+        allItemNumbers.add(itemNumber);
+      });
+    });
+
+    // inventory_history에서 상품명 조회
+    const { data: productsData } = await supabase
+      .from('inventory_history')
+      .select('item_number, product_name')
+      .in('item_number', Array.from(allItemNumbers));
+
+    const productMap = new Map(productsData?.map(p => [p.item_number, p.product_name]));
+
+    const dataWithNames = data?.map(item => ({
+      ...item,
+      individual_products_with_names: item.individual_product_ids?.map((idStr: string) => {
+        const [itemNumber, customName] = idStr.split('#');
+        return {
+          item_number: itemNumber,
+          product_name: customName || productMap.get(itemNumber) || '정보 없음'
+        };
+      })
+    }));
+
     if (size) {
-      // 목록 화면 등에서 사용하는 페이지네이션 응답
-      const { data, error, count } = await query
-        .range(page * size, (page + 1) * size - 1);
-
-      if (error) throw error;
-
-      const dataWithActive = data?.map(item => ({
-        ...item,
-        is_active: item.is_active ?? true
-      }));
-
       return NextResponse.json({ 
-        data: dataWithActive,
+        data: dataWithNames,
         totalCount: count || 0,
         totalPages: count ? Math.ceil(count / size) : 0,
         currentPage: page,
         hasMore: count ? (page + 1) * size < count : false
       });
     } else {
-      // size 파라미터가 없는 경우(예: 판매계획 등록 모달의 세트품번 드롭다운)는
-      // 전체 활성 세트 목록을 반환
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      const dataWithActive = data?.map(item => ({
-        ...item,
-        is_active: item.is_active ?? true
-      }));
-
       return NextResponse.json({ 
-        data: dataWithActive
+        data: dataWithNames
       });
     }
   } catch (error) {
@@ -77,29 +87,29 @@ export async function DELETE(request: Request) {
 
     if (!id) {
       return NextResponse.json(
-        { error: '비활성화할 세트 ID가 필요합니다.' },
+        { error: '삭제할 세트 ID가 필요합니다.' },
         { status: 400 }
       );
     }
 
-    // set_products 테이블의 is_active를 false로 업데이트
+    // set_products 테이블에서 데이터 실제 삭제
     const { error: setError } = await supabase
       .from('set_products')
-      .update({ is_active: false })
+      .delete()
       .eq('id', id);
 
     if (setError) {
-      console.error('Set update error:', setError);
+      console.error('Set delete error:', setError);
       throw setError;
     }
 
     return NextResponse.json({ 
-      message: '세트가 성공적으로 비활성화되었습니다.' 
+      message: '세트가 성공적으로 삭제되었습니다.' 
     });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
-      { error: '세트 비활성화 중 오류가 발생했습니다.' },
+      { error: '세트 삭제 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }

@@ -4,5 +4,7 @@ export default function SalesPerformanceListPage() {
   return <SalesPerformanceListClient 
     initialData={[]} 
     channels={[]}
+    categories={[]}
+    setIds={[]}
   />;
-} 
+}

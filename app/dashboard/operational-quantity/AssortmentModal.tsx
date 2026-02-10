@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { IProduct } from '@/app/types/database';
 
 interface IGroupedProduct {
-  groupName: string;
+  itemNumber: string;
   items: {
     product_code: string;
+    item_number: string;
     product_name: string;
     specification: string;
     total: number;
@@ -26,35 +26,46 @@ interface IAssortmentModalProps {
 }
 
 // 사이즈 정렬 순서
-const sizeOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '4XL'];
+const sizeOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', '4XL'];
 
 // 사이즈 정렬 함수
 const compareSizes = (a: string, b: string): number => {
-  // 'FREE' 또는 비슷한 문자열은 항상 마지막으로
-  if (a.toUpperCase().includes('FREE')) return 1;
-  if (b.toUpperCase().includes('FREE')) return -1;
+  const cleanA = a.toUpperCase().trim();
+  const cleanB = b.toUpperCase().trim();
 
-  // 숫자인 경우 숫자 크기로 비교
-  const numA = parseInt(a);
-  const numB = parseInt(b);
-  if (!isNaN(numA) && !isNaN(numB)) {
+  // 'FREE' 또는 비슷한 문자열은 항상 마지막으로
+  if (cleanA.includes('FREE')) return 1;
+  if (cleanB.includes('FREE')) return -1;
+
+  // 숫자인 경우 숫자 크기로 비교 (예: 85, 90...) - "2XL" 같은 값은 숫자로 취급하면 안 됨
+  const isNumA = /^\d+$/.test(cleanA);
+  const isNumB = /^\d+$/.test(cleanB);
+  const numA = isNumA ? parseInt(cleanA, 10) : NaN;
+  const numB = isNumB ? parseInt(cleanB, 10) : NaN;
+  
+  if (isNumA && isNumB) {
     return numA - numB;
   }
 
   // 하나만 숫자인 경우, 숫자가 먼저 오도록
-  if (!isNaN(numA)) return -1;
-  if (!isNaN(numB)) return 1;
+  if (isNumA) return -1;
+  if (isNumB) return 1;
 
-  // 문자열인 경우 sizeOrder 배열 기준으로 정렬
-  const indexA = sizeOrder.indexOf(a);
-  const indexB = sizeOrder.indexOf(b);
+  // 문자열인 경우 sizeOrder 배열 기준으로 정렬 (XS, S, M, L, XL, XXL/2XL, 3XL, 4XL)
+  const getIndex = (size: string) => {
+    const s = size.toUpperCase();
+    if (s === '2XL') return sizeOrder.indexOf('XXL'); // 2XL과 XXL을 동일하게 취급
+    return sizeOrder.indexOf(s);
+  };
+
+  const indexA = getIndex(cleanA);
+  const indexB = getIndex(cleanB);
   
-  // sizeOrder에 없는 문자열은 마지막으로 (FREE 앞에)
-  if (indexA === -1 && indexB === -1) return a.localeCompare(b);
-  if (indexA === -1) return 1;
-  if (indexB === -1) return -1;
+  if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+  if (indexA !== -1) return -1;
+  if (indexB !== -1) return 1; // indexB만 있는 경우 B가 앞으로 오게 하려면 1 반환 (A가 뒤로)
   
-  return indexA - indexB;
+  return cleanA.localeCompare(cleanB);
 };
 
 // 동적 사이즈 매핑 함수
@@ -152,7 +163,9 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
 
   // 전체 최소 재고 중 가장 낮은 값 찾기
   const getLowestMinStock = () => {
-    return Math.min(...Object.values(minStocks).filter(stock => stock > 0));
+    const validStocks = Object.values(minStocks).filter(stock => stock > 0);
+    if (validStocks.length === 0) return 0;
+    return Math.min(...validStocks);
   };
 
   // 운영가능세트 계산 함수 - 반올림 제거
@@ -169,6 +182,7 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
       return calculateOperationalSet(minStock, percentage);
     }).filter(value => value > 0);
     
+    if (operationalSets.length === 0) return 0;
     return Math.min(...operationalSets);
   };
 
@@ -347,12 +361,12 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-4 w-full max-w-7xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-card rounded-lg p-4 w-full max-w-7xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">{setName}</h2>
+          <h2 className="text-xl font-bold text-foreground">{setName}</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-muted-foreground hover:text-foreground"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -361,8 +375,8 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
         </div>
 
         {/* 체크박스 추가 */}
-        <div className="flex space-x-4 mb-4">
-          <label>
+        <div className="flex space-x-4 mb-4 text-foreground">
+          <label className="inline-flex items-center gap-1">
             <input
               type="checkbox"
               checked={selectedWarehouses.warehouse106}
@@ -370,7 +384,7 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
             />
             화성창고
           </label>
-          <label>
+          <label className="inline-flex items-center gap-1">
             <input
               type="checkbox"
               checked={selectedWarehouses.warehouse3333}
@@ -378,7 +392,7 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
             />
             인천창고
           </label>
-          <label>
+          <label className="inline-flex items-center gap-1">
             <input
               type="checkbox"
               checked={selectedWarehouses.warehouse12345}
@@ -388,36 +402,42 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
           </label>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {/* 왼쪽: 세트 구성 상품 목록 */}
-          <div>
-            <h3 className="text-base font-semibold mb-2">세트 구성 상품</h3>
+        <div className="grid grid-cols-10 gap-4">
+          {/* 왼쪽: 세트 구성 상품 목록 (6/10) */}
+          <div className="col-span-6">
+            <h3 className="text-base font-semibold mb-2 text-foreground">세트 구성 상품</h3>
             <div className="space-y-3">
               {groupedProducts?.map((group, groupIndex) => (
-                <div key={groupIndex} className="bg-gray-50 p-3 rounded-lg">
-                  <h4 className="text-sm font-medium mb-2 text-blue-600">{group.groupName}</h4>
+                <div key={groupIndex} className="bg-muted p-3 rounded-lg">
+                  <h4 className="text-sm font-medium mb-2 text-blue-600 dark:text-blue-400">품번: {group.itemNumber}</h4>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-100">
+                      <thead className="bg-muted/80">
                         <tr>
-                          <th className="text-left px-2 py-1">사이즈</th>
-                          <th className="text-center px-2 py-1">총 재고</th>
-                          <th className="text-center px-2 py-1">화성창고</th>
-                          <th className="text-center px-2 py-1">인천창고</th>
-                          <th className="text-center px-2 py-1">반품창고</th>
+                          <th className="text-left px-2 py-1 text-muted-foreground">품번</th>
+                          <th className="text-left px-2 py-1 text-muted-foreground">상품코드</th>
+                          <th className="text-center px-2 py-1 text-muted-foreground">사이즈</th>
+                          <th className="text-center px-2 py-1 text-muted-foreground">총 재고</th>
+                          <th className="text-center px-2 py-1 text-muted-foreground">화성창고</th>
+                          <th className="text-center px-2 py-1 text-muted-foreground">인천창고</th>
+                          <th className="text-center px-2 py-1 text-muted-foreground">반품창고</th>
                         </tr>
                       </thead>
                       <tbody>
                         {group.items.map((item, itemIndex) => (
-                          <tr key={itemIndex} className="border-t border-gray-200 hover:bg-gray-50">
+                          <tr key={itemIndex} className="border-t border-border hover:bg-muted/50">
+                            <td className="px-2 py-1 font-medium text-foreground">{item.item_number}</td>
                             <td className="px-2 py-1">
-                              <div className="font-medium">{item.specification || '-'}</div>
-                              <div className="text-xs text-gray-500">{item.product_code}</div>
+                              <div className="text-xs text-muted-foreground">{item.product_code}</div>
+                              <div className="text-[10px] text-muted-foreground/60 truncate max-w-[120px]" title={item.product_name}>
+                                {item.product_name}
+                              </div>
                             </td>
-                            <td className="px-2 py-1 text-center font-medium">{calculateStock(item)}</td>
-                            <td className="px-2 py-1 text-center">{item.warehouse_106}</td>
-                            <td className="px-2 py-1 text-center">{item.warehouse_3333}</td>
-                            <td className="px-2 py-1 text-center">{item.warehouse_12345}</td>
+                            <td className="px-2 py-1 text-center text-foreground">{item.specification || '-'}</td>
+                            <td className="px-2 py-1 text-center font-medium text-blue-600 dark:text-blue-400">{calculateStock(item)}</td>
+                            <td className="px-2 py-1 text-center text-foreground">{item.warehouse_106}</td>
+                            <td className="px-2 py-1 text-center text-foreground">{item.warehouse_3333}</td>
+                            <td className="px-2 py-1 text-center text-foreground">{item.warehouse_12345}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -428,25 +448,24 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
             </div>
           </div>
 
-          {/* 오른쪽: 사이즈별 아소트 입력, 사이즈별 운영 가능 재고, 운영가능 총 수량 */}
-          <div className="space-y-3">
+          {/* 오른쪽: 사이즈별 아소트 입력, 사이즈별 운영 가능 재고, 운영가능 총 수량 (4/10) */}
+          <div className="col-span-4 space-y-3">
             {/* 사이즈별 아소트 입력 */}
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="text-base font-semibold mb-2">사이즈별 아소트</h3>
+            <div className="bg-muted p-3 rounded-lg">
+              <h3 className="text-base font-semibold mb-2 text-foreground">사이즈별 아소트</h3>
               <table className="w-full text-sm">
-                <thead className="bg-gray-100">
+                <thead className="bg-muted/80">
                   <tr>
-                    <th className="text-left px-3 py-1.5">사이즈</th>
-                    <th className="text-center px-3 py-1.5">최소 재고</th>
-                    <th className="text-center px-3 py-1.5">아소트 입력(%)</th>
-                    <th className="text-center px-3 py-1.5">할당 수량</th>
-                    <th className="text-center px-3 py-1.5">운영가능세트</th>
+                    <th className="text-left px-3 py-1.5 text-muted-foreground">사이즈</th>
+                    <th className="text-center px-3 py-1.5 text-muted-foreground">최소 재고</th>
+                    <th className="text-center px-3 py-1.5 text-muted-foreground">아소트 입력(%)</th>
+                    <th className="text-center px-3 py-1.5 text-muted-foreground">할당 수량</th>
                   </tr>
                 </thead>
                 <tbody>
                   {Object.entries(sizeLabels).map(([size, label]) => (
-                    <tr key={size} className="border-t border-gray-200">
-                      <td className="px-3 py-2 font-medium">{label}</td>
+                    <tr key={size} className="border-t border-border">
+                      <td className="px-3 py-2 font-medium text-foreground">{label}</td>
                       <td className="px-3 py-2 text-center">
                         <span className={`font-medium ${minStocks[label] === 0 ? 'text-red-500' : 'text-blue-600'}`}>
                           {minStocks[label]}
@@ -455,7 +474,7 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
                       <td className="px-3 py-2">
                         <div className="flex items-center space-x-2">
                           {minStocks[label] === 0 ? (
-                            <div className="w-20 text-center text-gray-500">-</div>
+                            <div className="w-20 text-center text-muted-foreground">-</div>
                           ) : (
                             <input
                               type="number"
@@ -463,22 +482,19 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
                               max="100"
                               value={assortments[size]}
                               onChange={(e) => handleInputChange(size, e.target.value)}
-                              className="w-20 border rounded-lg px-2 py-1 text-center text-sm"
+                              className="w-20 border border-border rounded-lg px-2 py-1 text-center text-sm bg-card text-foreground"
                             />
                           )}
-                          <span className="text-gray-500">%</span>
+                          <span className="text-muted-foreground">%</span>
                         </div>
                       </td>
                       <td className="px-3 py-2 text-center font-medium text-purple-600">
                         {calculateAssortmentQuantity(assortments[size])}
                       </td>
-                      <td className="px-3 py-2 text-center font-medium text-green-600">
-                        {calculateOperationalSet(minStocks[label], assortments[size])}
-                      </td>
                     </tr>
                   ))}
-                  <tr className="border-t border-gray-200 bg-gray-50">
-                    <td className="px-3 py-2 text-right font-medium">총합계</td>
+                  <tr className="border-t border-border bg-muted/50">
+                    <td className="px-3 py-2 text-right font-medium text-foreground">총합계</td>
                     <td className="px-3 py-2 text-center font-medium text-blue-600">
                       {totalMinStock.toLocaleString()}
                     </td>
@@ -489,22 +505,22 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
                         }`}>
                           {totalAssortmentPercentage}
                         </span>
-                        <span className="text-gray-500">%</span>
+                        <span className="text-muted-foreground">%</span>
                       </div>
                     </td>
-                    <td colSpan={2}></td>
+                    <td></td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
             {/* 사이즈별 운영 가능 재고 */}
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="text-base font-semibold mb-2">사이즈별 운영 가능 재고</h3>
+            <div className="bg-muted p-3 rounded-lg">
+              <h3 className="text-base font-semibold mb-2 text-foreground">사이즈별 운영 가능 재고</h3>
               <div className="grid grid-cols-7 gap-2">
                 {Object.entries(sizeLabels).map(([size, label]) => (
                   <div key={size} className="text-center">
-                    <div className="text-sm font-medium text-gray-600">{label}</div>
+                    <div className="text-sm font-medium text-muted-foreground">{label}</div>
                     <div className={`text-base font-bold ${
                       minStocks[label] === 0 ? 'text-red-500' : 'text-blue-600'
                     }`}>
@@ -516,8 +532,8 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
             </div>
 
             {/* 운영가능 총 수량 표시 */}
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <h3 className="text-base font-semibold mb-2">운영가능 총 수량</h3>
+            <div className="bg-muted p-3 rounded-lg">
+              <h3 className="text-base font-semibold mb-2 text-foreground">운영가능 총 수량</h3>
               <div className="w-full px-3 py-1.5 text-xl font-bold text-blue-600">
                 {operationalQuantity.toLocaleString()}
               </div>
@@ -526,10 +542,10 @@ export default function AssortmentModal({ isOpen, onClose, setId, setName, group
         </div>
 
         {/* 버튼 영역 */}
-        <div className="flex justify-end space-x-2 mt-4 pt-3 border-t">
+        <div className="flex justify-end space-x-2 mt-4 pt-3 border-t border-border">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 border rounded-lg hover:bg-gray-50 text-sm font-medium"
+            className="px-4 py-1.5 border border-border rounded-lg hover:bg-muted text-sm font-medium text-foreground"
           >
             취소
           </button>

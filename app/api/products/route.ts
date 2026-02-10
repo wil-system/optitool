@@ -91,16 +91,19 @@ export async function GET(request: Request) {
     const searchFields = searchParams.get('searchFields')?.split(',') || [];
 
     let query = supabase
-      .from('products')
-      .select('*', { count: 'exact' })  // 전체 개수를 가져오기 위해 count 옵션 추가
-      .order('updated_at', { ascending: false });
+      .from('inventory_history')
+      .select('*', { count: 'exact' })
+      .order('product_code', { ascending: true });
 
     // 검색 조건 추가
     if (searchTerm && searchFields.length > 0) {
-      const searchConditions = searchFields.map(field => {
-        return `${field}.ilike.%${searchTerm}%`;
-      });
-      query = query.or(searchConditions.join(','));
+      const searchConditions = searchFields
+        .filter(field => field) // 빈 필드 제외
+        .map(field => `${field}.ilike.%${searchTerm}%`);
+      
+      if (searchConditions.length > 0) {
+        query = query.or(searchConditions.join(','));
+      }
     }
 
     // 페이지네이션 적용

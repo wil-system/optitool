@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
 
-// 세트 삭제 (비활성화)
+// 세트 삭제 (실제 삭제)
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -17,21 +17,20 @@ export async function DELETE(
 
     const { error } = await supabase
       .from('set_products')
-      .update({ is_active: false })
-      .eq('id', id)
-      .select();
+      .delete()
+      .eq('id', id);
 
     if (error) throw error;
 
     return NextResponse.json({ 
       success: true,
-      message: '성공적으로 비활성화되었습니다.' 
+      message: '성공적으로 삭제되었습니다.' 
     });
 
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json(
-      { error: '세트 비활성화 중 오류가 발생했습니다.' },
+      { error: '세트 삭제 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }

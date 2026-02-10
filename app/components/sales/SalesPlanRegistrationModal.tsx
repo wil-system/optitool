@@ -6,537 +6,363 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { ISalesPlans } from '@/app/types/database';
-
-interface Channel {
-  id: number;
-  channel_code: string;
-  channel_name: string;
-  channel_details?: string[];
-}
-
-interface Category {
-  id: number;
-  category_name: string;
-}
-
-interface SetProduct {
-  id: number;
-  set_id: string;
-  set_name: string;
-  is_active: boolean;
-  remarks : string;
-}
+import { ISalesPlanWithPerformance } from '@/app/types/database';
+import { supabase } from '@/utils/supabase';
+import SetProductSelectionModal from './SetProductSelectionModal';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  channels: Channel[];
-  categories: Category[];
-  setIds: SetProduct[];
-  editData?: ISalesPlans;
-  isPerformanceEdit?: boolean;
+  editData?: ISalesPlanWithPerformance;
+  channels: { id: number; channel_name: string }[];
 }
 
-export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess, channels, categories, setIds, editData, isPerformanceEdit }: Props) {
-  const today = new Date();
+export default function SalesPlanRegistrationModal({ isOpen, onClose, onSuccess, editData, channels }: Props) {
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTime, setSelectedTime] = useState<Date | null>(null);
-  const [selectedChannel, setSelectedChannel] = useState<any>(null);
-  const [selectedCategory, setSelectedCategory] = useState<any>(null);
-  const [channelDetails, setChannelDetails] = useState<string[]>([]);
+  const [selectedTime, setSelectedTime] = useState<string>('');
+  const [isSetModalOpen, setIsSetSetModalOpen] = useState(false);
   
-  const [formattedSalePrice, setFormattedSalePrice] = useState('');
-  const [formattedCommissionRate, setFormattedCommissionRate] = useState('');
-  const [formattedTarget, setFormattedTarget] = useState('');
-  
-  const initialFormData = {
+  const [formData, setFormData] = useState({
+    season_year: '',
+    season: 'SS',
+    channel_name: '',
+    set_item_code: '',
     product_name: '',
-    product_summary: '',
-    quantity_composition: '',
-    set_id: '',
-    product_code: '',
+    additional_composition: '',
+    additional_item_code: '',
     sale_price: '',
     commission_rate: '',
     target_quantity: '',
-    channel_detail: '',
-    is_undecided: false
-  };
-  
-
-  const [formData, setFormData] = useState({
-    season_year: '',
-    season_type: 'SS',
-    ...initialFormData
   });
-  const [productCode, setProductCode] = useState('');
-
-  const [focusedField, setFocusedField] = useState<string | null>(null);
-
-  // 미확정 상태를 위한 state 추가
-  const [isUndecided, setIsUndecided] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedDate(null);
-      setSelectedTime(null);
-      setSelectedChannel(null);
-      setSelectedCategory(null);
-      setChannelDetails([]);
-      setFormattedSalePrice('');
-      setFormattedCommissionRate('');
-      setFormattedTarget('');
-      setIsUndecided(false); // 모달 열릴 때 미확정 상태 초기화
-      setFormData({
-        season_year: '',
-        season_type: 'SS',
-        ...initialFormData
-      });
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (editData) {
-      const seasonYear = editData.season.substring(0, 2);
-      const seasonType = editData.season.substring(2);
-      
-      const selectedSet = setIds.find(set => set.id === editData.set_info?.id);
-      
-      setFormData({
-        season_year: seasonYear,
-        season_type: seasonType as 'SS' | 'FW',
-        product_name: editData.product_name,
-        product_summary: editData.product_summary || '',
-        quantity_composition: editData.quantity_composition || '',
-        product_code: editData.product_code,
-        sale_price: editData.sale_price.toString(),
-        commission_rate: editData.commission_rate.toString(),
-        target_quantity: editData.target_quantity.toString(),
-        set_id: selectedSet?.set_id || '',
-        channel_detail: editData.channel_detail || '',
-        is_undecided: editData.is_undecided || false
-      });
-
-      setSelectedDate(new Date(editData.plan_date));
-      setSelectedTime(new Date(`2000-01-01T${editData.plan_time}`));
-      
-      setIsUndecided(editData.is_undecided || false);
-
-      const channel = channels.find(ch => ch.id === editData.channel_id);
-      setSelectedChannel(channel || null);
-      
-      if (channel?.channel_details) {
-        setChannelDetails(channel.channel_details);
+      if (editData) {
+        setFormData({
+          season_year: editData.season_year || '',
+          season: editData.season || 'SS',
+          channel_name: editData.channel_name || '',
+          set_item_code: editData.set_item_code || '',
+          product_name: editData.product_name || '',
+          additional_composition: editData.additional_composition || '',
+          additional_item_code: editData.additional_item_code || '',
+          sale_price: editData.sale_price?.toString() || '',
+          commission_rate: editData.commission_rate?.toString() || '',
+          target_quantity: editData.target_quantity?.toString() || '',
+        });
+        setSelectedDate(editData.plan_date ? new Date(editData.plan_date) : null);
+        setSelectedTime(editData.plan_time?.substring(0, 5) || '');
+      } else {
+        setFormData({
+          season_year: new Date().getFullYear().toString(),
+          season: 'SS',
+          channel_name: '',
+          set_item_code: '',
+          product_name: '',
+          additional_composition: '',
+          additional_item_code: '',
+          sale_price: '',
+          commission_rate: '',
+          target_quantity: '',
+        });
+        setSelectedDate(null);
+        setSelectedTime('');
       }
-      
-      const category = categories.find(cat => cat.category_name === editData.product_category);
-      setSelectedCategory(category || null);
     }
-  }, [editData, channels, categories, setIds]);
+  }, [isOpen, editData]);
 
-  const handleChannelChange = (channelId: string) => {
-    const selected = channels.find(ch => ch.id === Number(channelId));
-    setSelectedChannel(selected || null);
-    
-    if (selected?.channel_details) {
-      setChannelDetails(selected.channel_details);
-    } else {
-      setChannelDetails([]);
-    }
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const formatPrice = (value: string, isFocused: boolean) => {
-    const number = value.replace(/[^\d]/g, '');
-    if (!number) return '';
-    return isFocused ? number : Number(number).toLocaleString() + '원';
+  const formatNumberWithCommas = (value: string) => {
+    const num = value.replace(/[^0-9]/g, '');
+    if (!num) return '';
+    return Number(num).toLocaleString();
   };
 
-  const formatCommissionRate = (value: string, isFocused: boolean) => {
-    const number = value.replace(/[^\d]/g, '');
-    if (!number) return '';
-    if (Number(number) > 100) return isFocused ? '100' : '100%';
-    return isFocused ? number : number + '%';
+  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const numValue = value.replace(/[^0-9]/g, '');
+    setFormData(prev => ({ ...prev, [name]: numValue }));
   };
 
-  const formatTarget = (value: string, isFocused: boolean) => {
-    const number = value.replace(/[^\d]/g, '');
-    if (!number) return '';
-    return isFocused ? number : Number(number).toLocaleString() + '개';
-  };
-
-  const handleSalePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPrice(e.target.value, false);
-    setFormattedSalePrice(formatted);
-    setFormData({
-      ...formData,
-      sale_price: e.target.value.replace(/[^\d]/g, '')
-    });
-  };
-
-  const handleCommissionRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCommissionRate(e.target.value, false);
-    setFormattedCommissionRate(formatted);
-    setFormData({
-      ...formData,
-      commission_rate: e.target.value.replace(/[^\d]/g, '')
-    });
-  };
-
-  const handleTargetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatTarget(e.target.value, false);
-    setFormattedTarget(formatted);
-    setFormData({
-      ...formData,
-      target_quantity: e.target.value.replace(/[^\d]/g, '')
-    });
-  };
-
-  const handleSetIdChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedId = e.target.value;
-    setFormData({
-      ...formData,
-      set_id: selectedId
-    });
-  };
-
-  const validateForm = () => {
-    if (!selectedDate) {
-      alert('날짜를 선택해주세요.');
-      return false;
-    }
-    if (!selectedTime) {
-      alert('시간을 선택해주세요.');
-      return false;
-    }
-    if (!selectedChannel) {
-      alert('판매채널을 선택해주세요.');
-      return false;
-    }
-    if (!selectedCategory) {
-      alert('카테고리를 선택해주세요.');
-      return false;
-    }
-    if (!formData.set_id.trim()) {
-      alert('세트품번을 입력해주세요.');
-      return false;
-    }
-    if (!formData.product_code.trim()) {
-      alert('상품코드를 입력해주세요.');
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleSeasonYearChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
-    setFormData(prev => ({
-      ...prev,
-      season_year: value
-    }));
-  };
-
-  const handleSeasonTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      season_type: e.target.value
-    }));
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const numValue = value.replace(/[^0-9]/g, '');
+    setFormData(prev => ({ ...prev, [name]: numValue }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) return;
+    setIsLoading(true);
 
     try {
-      const selectedSet = setIds.find(set => set.set_id === formData.set_id);
-      if (!selectedSet) {
-        throw new Error('유효하지 않은 세트품번입니다.');
-      }
-
-      const data = {
-        season: `${formData.season_year}${formData.season_type}`,
-        plan_date: format(selectedDate!, 'yyyy-MM-dd'),
-        plan_time: format(selectedTime!, 'HH:mm:ss'),
-        channel_id: selectedChannel.id,
-        channel_code: selectedChannel.channel_code,
-        channel_detail: (e.target as HTMLFormElement).channel_detail.value,
-        product_category: selectedCategory?.category_name || '',
-        product_name: formData.product_name,
-        product_summary: formData.product_summary,
-        quantity_composition: formData.quantity_composition,
-        set_id: selectedSet.id,
-        product_code: formData.product_code,
-        sale_price: Number(formData.sale_price),
-        commission_rate: Number(formData.commission_rate),
-        target_quantity: Number(formData.target_quantity),
-        is_undecided: isUndecided
+      const submitData = {
+        ...formData,
+        plan_date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
+        plan_time: selectedTime ? `${selectedTime}:00` : null,
+        sale_price: Number(formData.sale_price || 0),
+        commission_rate: Number(formData.commission_rate || 0),
+        target_quantity: Number(formData.target_quantity || 0),
       };
 
-      const url = editData 
-        ? `/api/sales/plans/${editData.id}`
-        : '/api/sales/plans';
-      
-      const response = await fetch(url, {
-        method: editData ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '등록 실패');
+      let error;
+      if (editData) {
+        const { error: updateError } = await supabase
+          .from('sales_plans_with_performance')
+          .update(submitData)
+          .eq('id', editData.id);
+        error = updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('sales_plans_with_performance')
+          .insert([submitData]);
+        error = insertError;
       }
 
-      alert(editData ? '판매계획이 수정되었습니다.' : '판매계획이 등록되었습니다.');
+      if (error) throw error;
+
       onSuccess();
+      onClose();
     } catch (error) {
-      console.error('Error:', error);
-      alert(error instanceof Error ? error.message : '처리 중 오류가 발생했습니다.');
+      // eslint-disable-next-line no-console
+      console.error('Error saving sales plan:', error);
+      alert('저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const currentDate = new Date();
-  const isToday = selectedDate && format(selectedDate, 'yyyy-MM-dd') === format(currentDate, 'yyyy-MM-dd');
-  const minTime = isToday ? currentDate : new Date(new Date().setHours(0, 0, 0, 0));
+  const handleSetSelect = (set: { set_id: string; set_name: string }) => {
+    setFormData(prev => ({
+      ...prev,
+      set_item_code: set.set_id,
+      product_name: set.set_name
+    }));
+    setIsSetSetModalOpen(false);
+  };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="판매계획 등록">
-      <form onSubmit={handleSubmit} className="p-4">
-        <div className="space-y-4">
-          {/* 시즌/날짜 정보 */}
-          <div className="flex space-x-4">
-            <div className="w-20">
-              <label className="block text-sm font-medium text-gray-700 mb-1">시즌연도</label>
-              <input
-                type="text"
-                value={formData.season_year}
-                onChange={handleSeasonYearChange}
-                placeholder="YY"
-                maxLength={2}
-                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      title={editData ? "판매계획 수정" : "판매계획 추가"}
+      width="max-w-4xl"
+    >
+      <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* 시즌 정보 */}
+          <div className="space-y-4 border-b border-border pb-4 md:border-b-0 md:pb-0 md:border-r md:pr-6">
+            <h4 className="text-sm font-bold text-blue-600 flex items-center gap-2">
+              <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
+              기본 정보
+            </h4>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">시즌년도 (YYYY)</label>
+                <input
+                  type="text"
+                  name="season_year"
+                  value={formData.season_year}
+                  onChange={handleNumberChange}
+                  placeholder="2024"
+                  maxLength={4}
+                  className="w-full px-3 py-2 bg-blue-50/30 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all font-semibold text-blue-700 dark:text-blue-300"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">시즌</label>
+                <select
+                  name="season"
+                  value={formData.season}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 bg-blue-50/30 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all font-semibold text-blue-700 dark:text-blue-300 [&>option]:bg-card [&>option]:text-foreground"
+                >
+                  <option value="SS">SS</option>
+                  <option value="FW">FW</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">일자</label>
+                <DatePicker
+                  selected={selectedDate}
+                  onChange={(date) => setSelectedDate(date)}
+                  dateFormat="yyyy-MM-dd"
+                  locale={ko}
+                  placeholderText="날짜 선택"
+                  className="w-full px-3 py-2 bg-blue-50/30 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all font-semibold text-blue-700 dark:text-blue-300"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">시작시간</label>
+                <input
+                  type="time"
+                  value={selectedTime}
+                  onChange={(e) => setSelectedTime(e.target.value)}
+                  step="60"
+                  className="w-full px-3 py-2 bg-blue-50/30 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all font-semibold text-blue-700 dark:text-blue-300"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground">채널</label>
+              <select
+                name="channel_name"
+                value={formData.channel_name}
+                onChange={handleChange}
+                className="w-full px-3 py-2 bg-blue-50/30 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all font-semibold text-blue-700 dark:text-blue-300 [&>option]:bg-card [&>option]:text-foreground"
                 required
-              />
-            </div>
-            <div className="w-24">
-              <label className="block text-sm font-medium text-gray-700 mb-1">시즌</label>
-              <select
-                value={formData.season_type}
-                onChange={handleSeasonTypeChange}
-                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-                required
               >
-                <option value="SS">SS</option>
-                <option value="FW">FW</option>
-              </select>
-            </div>
-            <div className="w-44">
-              <label className="block text-sm font-medium text-gray-700 mb-1">날짜</label>
-              <DatePicker
-                selected={selectedDate}
-                onChange={(date) => setSelectedDate(date)}
-                dateFormat="yyyy년 M월 d일"
-                locale={ko}
-                placeholderText="날짜 선택"
-                
-                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-                wrapperClassName="w-full"
-              />
-            </div>
-            <div className="w-32">
-              <label className="block text-sm font-medium text-gray-700 mb-1">시간</label>
-              <select
-                id="planTime"
-                value={selectedTime ? format(selectedTime, 'HH:mm') : ''}
-                onChange={(e) => setSelectedTime(e.target.value ? new Date(`2000-01-01T${e.target.value}`) : null)}
-                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-              >
-                <option value="">시간 선택</option>
-                {Array.from({ length: 144 }, (_, i) => {
-                  const hour = Math.floor(i / 6).toString().padStart(2, '0');
-                  const minute = (i % 6 * 10).toString().padStart(2, '0');
-                  const timeValue = `${hour}:${minute}`;
-                  const currentTime = new Date();
-                  const optionTime = new Date(currentTime.setHours(parseInt(hour), parseInt(minute)));
-                  
-                  if (isToday && optionTime <= new Date()) {
-                    return null;
-                  }
-
-                  return (
-                    <option key={timeValue} value={`${timeValue}`}>
-                      {timeValue}
-                    </option>
-                  );
-                }).filter(Boolean)}
-              </select>
-            </div>
-          </div>
-
-          {/* 상품 정보 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">상품코드</label>
-              <input
-                type="text"
-                value={formData.product_code}
-                onChange={(e) => setFormData({...formData, product_code: e.target.value})}
-                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">세트품번</label>
-              <select
-                value={formData.set_id|| ''}
-                onChange={(e) => setFormData({ ...formData, set_id: e.target.value })}
-                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-              >
-                <option value="">선택하세요</option>
-                {setIds.map((set) => (
-                  <option key={set.id} value={set.set_id}>
-                    {set.remarks? `${set.set_id} - ${set.set_name} - ${set.remarks}` : `${set.set_id} - ${set.set_name}`}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* 채널 정보 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">판매채널</label>
-              <select
-                onChange={(e) => handleChannelChange(e.target.value)}
-                value={selectedChannel?.id || ''}
-                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-              >
-                <option value="">선택하세요</option>
+                <option value="">채널 선택</option>
                 {channels.map((channel) => (
-                  <option key={channel.id} value={channel.id}>
+                  <option key={channel.id} value={channel.channel_name}>
                     {channel.channel_name}
                   </option>
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">채널상세</label>
-              <select
-                name="channel_detail"
-                value={formData.channel_detail}
-                onChange={(e) => setFormData({ ...formData, channel_detail: e.target.value })}
-                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-              >
-                <option value="">선택하세요</option>
-                {channelDetails.map((detail, index) => (
-                  <option key={index} value={detail}>
-                    {detail}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
-          {/* 카테고리 및 추가 구성 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">카테고리</label>
-              <select
-                onChange={(e) => {
-                  const selected = categories.find(cat => cat.id === Number(e.target.value));
-                  setSelectedCategory(selected || null);
-                }}
-                value={selectedCategory?.id || ''}
-                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-              >
-                <option value="">선택하세요</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.category_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">추가 구성</label>
-              <input
-                type="text"
-                value={formData.quantity_composition}
-                onChange={(e) => setFormData({...formData, quantity_composition: e.target.value})}
-                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-              />
-            </div>
-          </div>
+          {/* 상품 정보 */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-bold text-emerald-600 flex items-center gap-2">
+              <span className="w-1 h-4 bg-emerald-600 rounded-full"></span>
+              상품 및 판매 정보
+            </h4>
 
-          {/* 판매 정보 */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">판매가</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">세트품번</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="set_item_code"
+                    value={formData.set_item_code}
+                    readOnly
+                    onClick={() => setIsSetSetModalOpen(true)}
+                    className="w-full px-3 py-2 bg-emerald-50/30 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer hover:border-emerald-400 font-semibold text-emerald-700 dark:text-emerald-300"
+                    placeholder="클릭하여 선택"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsSetSetModalOpen(true)}
+                    className="absolute right-2 top-1.5 p-1 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">추가품번</label>
+                <input
+                  type="text"
+                  name="additional_item_code"
+                  value={formData.additional_item_code}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 bg-emerald-50/30 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-semibold text-emerald-700 dark:text-emerald-300"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground">상품명</label>
               <input
                 type="text"
-                value={focusedField === 'price' ? formData.sale_price : formatPrice(formData.sale_price, false)}
-                onChange={handleSalePriceChange}
-                onFocus={() => setFocusedField('price')}
-                onBlur={() => setFocusedField(null)}
-                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                name="product_name"
+                value={formData.product_name}
+                onChange={handleChange}
+                className="w-full px-3 py-2 bg-emerald-50/30 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-semibold text-emerald-700 dark:text-emerald-300"
+                required
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">수수료율</label>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground">추가구성</label>
               <input
                 type="text"
-                value={focusedField === 'commission' ? formData.commission_rate : formatCommissionRate(formData.commission_rate, false)}
-                onChange={handleCommissionRateChange}
-                onFocus={() => setFocusedField('commission')}
-                onBlur={() => setFocusedField(null)}
-                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                name="additional_composition"
+                value={formData.additional_composition}
+                onChange={handleChange}
+                className="w-full px-3 py-2 bg-emerald-50/30 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-semibold text-emerald-700 dark:text-emerald-300"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">목표수량</label>
-              <input
-                type="text"
-                value={focusedField === 'target' ? formData.target_quantity : formatTarget(formData.target_quantity, false)}
-                onChange={handleTargetChange}
-                onFocus={() => setFocusedField('target')}
-                onBlur={() => setFocusedField(null)}
-                className="block w-full h-10 rounded-md border-0 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-              />
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">판매가</label>
+                <input
+                  type="text"
+                  name="sale_price"
+                  value={formatNumberWithCommas(formData.sale_price)}
+                  onChange={handlePriceChange}
+                  className="w-full px-2 py-2 bg-emerald-50/30 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-right font-bold text-emerald-700 dark:text-emerald-300"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">수수료(%)</label>
+                <input
+                  type="text"
+                  name="commission_rate"
+                  value={formData.commission_rate}
+                  onChange={handleNumberChange}
+                  className="w-full px-2 py-2 bg-emerald-50/30 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-right font-bold text-emerald-700 dark:text-emerald-300"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">목표</label>
+                <input
+                  type="text"
+                  name="target_quantity"
+                  value={formData.target_quantity}
+                  onChange={handleNumberChange}
+                  className="w-full px-2 py-2 bg-emerald-50/30 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-right font-bold text-emerald-700 dark:text-emerald-300"
+                  required
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 미확정 체크박스 추가 - 폼 하단에 배치 */}
-        <div className="mt-6 mb-4">
-          <label className="inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isUndecided}
-              onChange={(e) => setIsUndecided(e.target.checked)}
-              className="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-            />
-            <span className="ml-2 text-sm text-gray-700">미확정</span>
-          </label>
-        </div>
-
-        <div className="flex justify-end space-x-3">
+        <div className="flex justify-end gap-3 pt-4 border-t border-border">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            className="px-6 py-2.5 bg-card border border-border text-muted-foreground text-sm font-bold rounded-xl hover:bg-muted transition-all"
           >
             취소
           </button>
           <button
             type="submit"
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+            disabled={isLoading}
+            className="px-8 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50"
           >
-            등록
+            {isLoading ? '저장 중...' : (editData ? '수정 완료' : '계획 등록')}
           </button>
         </div>
       </form>
+
+      <SetProductSelectionModal
+        isOpen={isSetModalOpen}
+        onClose={() => setIsSetSetModalOpen(false)}
+        onSelect={handleSetSelect}
+      />
     </Modal>
   );
-} 
+}

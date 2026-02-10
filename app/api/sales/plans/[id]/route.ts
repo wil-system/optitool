@@ -67,19 +67,8 @@ export async function DELETE(
     
     const { error } = await supabase
       .from('sales_plans')
-      .update({ 
-        is_active: false,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select(`
-        *,
-        set_info:set_products(
-          id,
-          set_id,
-          set_name
-        )
-      `);
+      .delete()
+      .eq('id', id);
 
     if (error) throw error;
 

@@ -33,11 +33,12 @@ export async function GET(request: Request) {
       success: true,
       data: data?.map(item => ({
         product_code: item.product_code,
+        item_number: item.item_number,
         product_name: item.product_name,
         specification: item.specification,
         total: item.total,
-        warehouse_106: item.warehouse_106,
         warehouse_3333: item.warehouse_3333,
+        warehouse_106: item.warehouse_106,
         warehouse_12345: item.warehouse_12345,
         updated_at: item.updated_at
       })) || [],

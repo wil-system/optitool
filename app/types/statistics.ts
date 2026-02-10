@@ -54,10 +54,13 @@ export interface IProductStatistics {
   channel: string;
   channel_detail: string;
   category: string;
-  sales_amount: number;
-  performance: number;
+  sales_amount: number; // 순매출 (net_sales)
+  total_sales: number; // 총매출 (total_sales)
+  performance: number; // 순주문 (net_order_quantity)
+  total_order: number; // 총주문 (total_order_quantity)
   target: number;
-  achievement_rate: number;
+  achievement_rate: number; // 순주문 달성률
+  total_achievement_rate: number; // 총주문 달성률 (종합달성률)
   share: number;
   temperature: number;
   operation_count: number; // 운영횟수 추가
@@ -127,14 +130,12 @@ export interface ICombinedSalesData {
       remarks: string;
       created_at: string;
       updated_at: string;
-      is_active: boolean;
     };
     sales_channels: {
       id: number;
       channel_code: string;
       channel_name: string;
       channel_detail: string;
-      is_active: boolean;
     };
   };
 } 

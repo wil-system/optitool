@@ -30,8 +30,6 @@ export async function GET(
           )
         )
       `)
-      .eq('is_active', true)
-      .eq('sales_plans.is_active', true)
       .eq('sales_plans.channel_id', channelId)
 
     if (error) {

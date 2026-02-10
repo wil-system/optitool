@@ -17,10 +17,7 @@ export async function PATCH(
 
      const { error } = await supabase
       .from('sales_plans')
-      .update({ 
-        is_active: false,
-        updated_at: new Date().toISOString()
-      })
+      .delete()
       .eq('id', id);
 
     if (error) throw error;

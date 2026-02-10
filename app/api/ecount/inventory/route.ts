@@ -111,6 +111,7 @@ export async function GET(request: Request) {
         if (!acc[item.PROD_CD]) {
           acc[item.PROD_CD] = {
             product_code: item.PROD_CD,
+            item_number: null, // item_number 필드 추가
             product_name: item.PROD_DES,
             specification,
             total: 0,
@@ -153,6 +154,7 @@ export async function GET(request: Request) {
       .upsert(
         transformedData.map((item) => ({
           product_code: item.product_code,
+          item_number: item.item_number, // item_number 필드 추가
           product_name: item.product_name,
           specification: item.specification,
           total: item.total,

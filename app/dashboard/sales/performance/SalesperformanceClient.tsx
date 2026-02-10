@@ -5,7 +5,7 @@ import DashboardLayout from '@/app/components/layout/DashboardLayout';
 import { format } from 'date-fns';
 import Modal from '@/app/components/common/Modal';
 import SalesPlanRegistrationModal from '@/app/components/sales/SalesPlanRegistrationModal';
-import { ISalesPerformance, ISalesPlans } from '@/app/types/database';
+import { ISalesPerformance, ISalesPlans, ISalesPlanWithPerformance } from '@/app/types/database';
 import LoadingSpinner from '@/app/components/common/LoadingSpinner';
 
 interface IChannel {
@@ -23,7 +23,6 @@ interface ISetProduct {
   id: number;
   set_id: string;
   set_name: string;
-  is_active: boolean;
   remarks: string;
 }
 
@@ -84,7 +83,7 @@ export default function SalesPerformanceClient() {
     setId: true
   });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedPlanData, setSelectedPlanData] = useState<ISalesPlans | null>(null);
+  const [selectedPlanData, setSelectedPlanData] = useState<ISalesPlanWithPerformance | null>(null);
   const [sets, setSets] = useState<ISetProduct[]>([]);
   const [channels, setChannels] = useState<IChannel[]>([]);
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -340,7 +339,21 @@ export default function SalesPerformanceClient() {
 
   const handleEditClick = (e: React.MouseEvent, plan: ISalesPlans) => {
     e.stopPropagation();
-    setSelectedPlanData(plan);
+    // ISalesPlans 데이터를 ISalesPlanWithPerformance 형식으로 변환하여 전달
+    const editData: Partial<ISalesPlanWithPerformance> = {
+      id: String(plan.id),
+      season: plan.season,
+      plan_date: plan.plan_date,
+      plan_time: plan.plan_time,
+      channel_name: plan.channel_name,
+      set_item_code: plan.set_info?.set_id,
+      product_name: plan.set_info?.set_name || plan.product_name,
+      sale_price: plan.sale_price,
+      commission_rate: plan.commission_rate || 0,
+      target_quantity: plan.target_quantity,
+      quantity_composition: plan.quantity_composition,
+    };
+    setSelectedPlanData(editData as ISalesPlanWithPerformance);
     setIsEditModalOpen(true);
   };
 
@@ -354,11 +367,10 @@ export default function SalesPerformanceClient() {
     if (window.confirm('이 판매계획을 삭제하시겠습니까?')) {
       try {
         const response = await fetch(`/api/sales/performance/${planId}`, {
-          method: 'PATCH',
+          method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ is_active: false }),
         });
 
         const result = await response.json();
@@ -380,9 +392,9 @@ export default function SalesPerformanceClient() {
   return (
     <DashboardLayout>
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6 flex justify-between items-center border-b border-gray-200">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">
+        <div className="bg-card shadow overflow-hidden sm:rounded-lg">
+          <div className="px-4 py-5 sm:px-6 flex justify-between items-center border-b border-border">
+            <h3 className="text-lg font-semibold text-foreground">
               판매실적 목록
             </h3>
             <div className="flex items-center gap-4">
@@ -446,13 +458,13 @@ export default function SalesPerformanceClient() {
                 <input
                   type="text"
                   placeholder="검색어를 입력하세요"
-                  className="pl-10 pr-4 py-2 border rounded-lg w-80"
+                  className="pl-10 pr-4 py-2 border border-border rounded-lg w-80 bg-card text-foreground"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyPress={handleKeyPress}
                 />
                 <div className="absolute left-3 top-2.5">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
@@ -467,31 +479,31 @@ export default function SalesPerformanceClient() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">운영시즌</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">일자</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시간</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품코드</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">판매채널</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">채널상세</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">카테고리</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품명</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">추가 구성</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">세트품번</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">판매가</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">수수료</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">목표</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">운영시즌</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">일자</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">시간</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">상품코드</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">판매채널</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">채널상세</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">카테고리</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">상품명</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">추가 구성</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">세트품번</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">판매가</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">수수료</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">목표</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-card divide-y divide-border">
                 {displayData.map((plan) => (
                   <tr 
                     key={plan.id}
-                    className={`hover:bg-gray-50 cursor-pointer 
-                      ${selectedPlan?.id === plan.id ? 'bg-blue-50' : ''} 
-                      ${plan.is_undecided ? 'text-red-600' : 'text-gray-900'}`}
+                    className={`hover:bg-muted cursor-pointer 
+                      ${selectedPlan?.id === plan.id ? 'bg-blue-50 dark:bg-blue-950/30' : ''} 
+                      ${plan.is_undecided ? 'text-red-600' : 'text-foreground'}`}
                     onClick={(e) => handleRowClick(e, plan)}
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{plan.season}</td>
@@ -519,7 +531,7 @@ export default function SalesPerformanceClient() {
 
           {selectedPlan && showPopup && (
             <div 
-              className="fixed bg-white shadow-lg rounded-lg z-50 border border-gray-200"
+              className="fixed bg-card shadow-lg rounded-lg z-50 border border-border"
               style={{
                 left: `${popupPosition.x}px`,
                 top: `${popupPosition.y}px`,
@@ -550,24 +562,24 @@ export default function SalesPerformanceClient() {
             />
           )}
 
-          <div className="bg-white px-4 py-3 flex items-center justify-center border-t border-gray-200 sm:px-6">
+          <div className="bg-card px-4 py-3 flex items-center justify-center border-t border-border sm:px-6">
             <div className="flex justify-center items-center">
               <button
                 onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="px-4 py-2 border rounded-lg mr-2 disabled:opacity-50"
+                className="px-4 py-2 border border-border rounded-lg mr-2 disabled:opacity-50 text-foreground hover:bg-muted"
               >
                 이전
               </button>
               
-              <span className="mx-4 text-sm text-gray-700">
+              <span className="mx-4 text-sm text-foreground">
                 {currentPage} / {totalPages}
               </span>
 
               <button
                 onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={!hasMore || data.length === 0}
-                className="px-4 py-2 border rounded-lg disabled:opacity-50"
+                className="px-4 py-2 border border-border rounded-lg disabled:opacity-50 text-foreground hover:bg-muted"
               >
                 다음
               </button>
@@ -580,49 +592,49 @@ export default function SalesPerformanceClient() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+              <div className="absolute inset-0 bg-black/50"></div>
             </div>
 
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div className="inline-block align-bottom bg-card rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+              <div className="bg-card px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
                   <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                    <h3 className="text-xl font-semibold mb-4 text-center">실적 입력</h3>
+                    <h3 className="text-xl font-semibold mb-4 text-center text-foreground">실적 입력</h3>
                     <div className="space-y-6 w-full">
-                      <div className="bg-blue-100 p-6 rounded-lg border-2 border-blue-200 shadow">
-                        <h3 className="text-sm font-semibold text-blue-800 mb-4 text-center">기본 정보</h3>
+                      <div className="bg-blue-100 dark:bg-blue-950/30 p-6 rounded-lg border-2 border-blue-200 dark:border-blue-800 shadow">
+                        <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-4 text-center">기본 정보</h3>
                         <div className="grid grid-cols-3 gap-6">
-                          <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <div className="bg-card p-3 rounded-md border-2 border-border shadow">
+                            <label className="block text-sm font-medium text-foreground mb-1">
                               실적
-                              <span className="text-sm text-gray-500 ml-2">
+                              <span className="text-sm text-muted-foreground ml-2">
                                 (목표: {selectedPlan ? formatNumber(selectedPlan.target_quantity) : '0'}개)
                               </span>
                             </label>
                             <input
                               type="text"
-                              className="block w-full rounded-md border-2 border-gray-300 bg-gray-100 text-gray-600 text-center"
+                              className="block w-full rounded-md border-2 border-border bg-muted text-foreground text-center"
                               value={formData.performance || ''}
                               onChange={(e) => setFormData({...formData, performance: parseFormattedNumber(e.target.value)})}
                             />
                           </div>
-                          <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
-                            <label className="block text-sm font-medium text-gray-700 mb-1 text-center">달성율 (%)</label>
+                          <div className="bg-card p-3 rounded-md border-2 border-border shadow">
+                            <label className="block text-sm font-medium text-foreground mb-1 text-center">달성율 (%)</label>
                             <input
                               type="text"
-                              className="block w-full rounded-md border-2 border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed text-center"
+                              className="block w-full rounded-md border-2 border-border bg-muted text-muted-foreground cursor-not-allowed text-center"
                               value={formData.achievementRate.toFixed(2)}
                               disabled
                             />
                           </div>
-                          <div className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
-                            <label className="block text-sm font-medium text-gray-700 mb-1 text-center">전환율 (%)</label>
+                          <div className="bg-card p-3 rounded-md border-2 border-border shadow">
+                            <label className="block text-sm font-medium text-foreground mb-1 text-center">전환율 (%)</label>
                             <input
                               type="number"
                               step="0.1"
-                              className="block w-full rounded-md border-2 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-center"
+                              className="block w-full rounded-md border-2 border-border bg-card text-foreground focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-center"
                               value={formData.temperature || ''}
                               onChange={(e) => setFormData({...formData, temperature: Number(e.target.value)})}
                             />
@@ -630,8 +642,8 @@ export default function SalesPerformanceClient() {
                         </div>
                       </div>
 
-                      <div className="bg-green-100 p-6 rounded-lg border-2 border-green-200 shadow">
-                        <h3 className="text-sm font-semibold text-green-800 mb-4 text-center">사이즈별 수량</h3>
+                      <div className="bg-green-100 dark:bg-green-950/30 p-6 rounded-lg border-2 border-green-200 dark:border-green-800 shadow">
+                        <h3 className="text-sm font-semibold text-green-800 dark:text-green-300 mb-4 text-center">사이즈별 수량</h3>
                         <div className="grid grid-cols-7 gap-4">
                           {[
                             { label: '85(XS)', key: 'xs85' },
@@ -642,11 +654,11 @@ export default function SalesPerformanceClient() {
                             { label: '110(XXL)', key: 'xxl110' },
                             { label: '120(4XL)', key: 'xxxl120' }
                           ].map(({ label, key }) => (
-                            <div key={key} className="bg-white p-3 rounded-md border-2 border-gray-300 shadow">
-                              <label className="block text-xs font-medium text-gray-700 mb-1 text-center">{label}</label>
+                            <div key={key} className="bg-card p-3 rounded-md border-2 border-border shadow">
+                              <label className="block text-xs font-medium text-foreground mb-1 text-center">{label}</label>
                               <input
                                 type="number"
-                                className="block w-full rounded-md border-2 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-center"
+                                className="block w-full rounded-md border-2 border-border bg-card text-foreground focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-center"
                                 value={formData[key as keyof FormData] || ''}
                                 onChange={(e) => setFormData({...formData, [key]: Number(e.target.value)})}
                               />
@@ -655,14 +667,14 @@ export default function SalesPerformanceClient() {
                         </div>
                       </div>
 
-                      <div className="bg-yellow-100 p-6 rounded-lg border-2 border-yellow-200 shadow">
+                      <div className="bg-yellow-100 dark:bg-yellow-950/30 p-6 rounded-lg border-2 border-yellow-200 dark:border-yellow-800 shadow">
              
                         <div className="flex justify-center">
-                          <div className="w-48 bg-white p-3 rounded-md border-2 border-gray-300 shadow">
-                            <label className="block text-xs font-medium text-gray-700 mb-1 text-center">미주 주문량</label>
+                          <div className="w-48 bg-card p-3 rounded-md border-2 border-border shadow">
+                            <label className="block text-xs font-medium text-foreground mb-1 text-center">미주 주문량</label>
                             <input
                               type="number"
-                              className="block w-full rounded-md border-2 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-center"
+                              className="block w-full rounded-md border-2 border-border bg-card text-foreground focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-center"
                               value={formData.usOrder || ''}
                               onChange={(e) => setFormData({...formData, usOrder: Number(e.target.value)})}
                             />
@@ -673,7 +685,7 @@ export default function SalesPerformanceClient() {
                   </div>
                 </div>
               </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              <div className="bg-muted px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
                   type="button"
                   onClick={handleSubmit}
@@ -684,7 +696,7 @@ export default function SalesPerformanceClient() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-border shadow-sm px-4 py-2 bg-card text-base font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   취소
                 </button>
@@ -700,22 +712,7 @@ export default function SalesPerformanceClient() {
           onClose={() => setIsEditModalOpen(false)}
           onSuccess={handleEditSuccess}
           channels={channels}
-          categories={categories}
-          setIds={sets}
-          editData={{
-            ...selectedPlanData,
-            set_info: {
-              id: selectedPlanData.set_info?.id || 0,
-              set_id: selectedPlanData.set_info?.set_id || '',
-              set_name: selectedPlanData.set_info?.set_name || ''
-            },
-            channel_id: selectedPlanData.channel_id || 0,
-            channel_code: selectedPlanData.channel_code || '',
-            product_code: selectedPlanData.product_code || '',
-            product_summary: selectedPlanData.product_summary || '',
-            quantity_composition: selectedPlanData.quantity_composition || ''
-          } as ISalesPlans}
-          isPerformanceEdit={true}
+          editData={selectedPlanData}
         />
       )}
     </DashboardLayout>

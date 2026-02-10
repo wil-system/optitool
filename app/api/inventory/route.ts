@@ -60,6 +60,7 @@ export async function GET(request: Request) {
       if (!acc[item.PROD_CD]) {
         acc[item.PROD_CD] = {
           product_code: item.PROD_CD,
+          item_number: null,
           product_name: item.PROD_DES,
           specification: specification,
           total: 0,
@@ -96,6 +97,7 @@ export async function GET(request: Request) {
       .upsert(
         transformedData.map(item => ({
           product_code: item.product_code,
+          item_number: item.item_number,
           product_name: item.product_name,
           specification: item.specification,
           total: item.total,

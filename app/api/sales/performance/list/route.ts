@@ -22,7 +22,6 @@ export async function GET(request: Request) {
           )
         )
       `, { count: 'exact' })
-      .eq('is_active', true)
       .not('sales_plan_id', 'is', null);
 
     // 검색 조건 적용
@@ -47,8 +46,7 @@ export async function GET(request: Request) {
           const { data: setProductsByName } = await supabase
             .from('set_products')
             .select('id')
-            .ilike('set_name', searchValue)
-            .eq('is_active', true);
+            .ilike('set_name', searchValue);
           
           if (setProductsByName && setProductsByName.length > 0) {
             const setIds = setProductsByName.map(sp => sp.id);
@@ -62,8 +60,7 @@ export async function GET(request: Request) {
           const { data: setProductsById } = await supabase
             .from('set_products')
             .select('id')
-            .ilike('set_id', searchValue)
-            .eq('is_active', true);
+            .ilike('set_id', searchValue);
           
           if (setProductsById && setProductsById.length > 0) {
             const setIds = setProductsById.map(sp => sp.id);
@@ -99,8 +96,7 @@ export async function GET(request: Request) {
       const { data: setData } = await supabase
         .from('set_products')
         .select('id, set_id, set_name')
-        .in('id', setIds)
-        .eq('is_active', true);
+        .in('id', setIds);
       setProducts = setData || [];
     }
 

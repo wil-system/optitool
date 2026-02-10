@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
 
-import { ICombinedSalesData , IAssortStatistics } from '@/app/types/statistics';
-
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -11,282 +9,125 @@ export async function GET(request: Request) {
     const period = searchParams.get('period') || 'monthly';
 
     let query = supabase
-    .from('sales_performance')
-    .select(`
-      id,
-      performance,
-      achievement_rate,
-      temperature,
-      xs_size,
-      s_size,
-      m_size,
-      l_size,
-      xl_size,
-      xxl_size,
-      fourxl_size,
-      is_active,
-      sales_plans!inner(
-        id,
-        season,
-        plan_date,
-        channel_code,
-        channel_detail,
-        product_category,
-        product_name,
-        product_summary,
-        quantity_composition,
-        set_id,
-        product_code,
-        sale_price,
-        commission_rate,
-        target_quantity,
-        channel_id,
-        is_active,
-        set_products(
-          id,
-          set_id,
-          set_name,
-          individual_product_ids,
-          is_active
-        ),
-        sales_channels(
-          id,
-          channel_code,
-          channel_name,
-          channel_details,
-          is_active
-        )
-      )
-    `)
-    .eq('is_active', true)
-    .eq('sales_plans.is_active', true);
-    //.eq('sales_plans.set_products.is_active', true);
-    //.eq('sales_plans.sales_channels.is_active', true);
-
+      .from('sales_plans_with_performance')
+      .select('*')
+      .or('net_order_quantity.gt.0,total_order_quantity.gt.0');
 
     if (startDate) {
       const startDateTime = new Date(startDate);
       startDateTime.setHours(startDateTime.getHours() + 9);
-      query = query.gte('sales_plans.plan_date', startDateTime.toISOString());
+      query = query.gte('plan_date', startDateTime.toISOString());
     }
     if (endDate) {
       const endDateTime = new Date(endDate);
       endDateTime.setHours(endDateTime.getHours() + 9);
       endDateTime.setHours(23, 59, 59, 999);
-      query = query.lte('sales_plans.plan_date', endDateTime.toISOString());
+      query = query.lte('plan_date', endDateTime.toISOString());
     }
 
     const { data, error } = await query;
 
     if (error) throw error;
-    if (!data || data.length === 0) return NextResponse.json([]);
+    if (!data || data.length === 0) return NextResponse.json({});
 
-    const groupedStats = data.reduce((acc: Record<string, Record<number, ICombinedSalesData>>, curr: any) => {
-      const planDate = curr.sales_plans?.plan_date;
-      
+    // 1. 기간별 그룹화
+    const groupedByPeriod = data.reduce((acc: Record<string, any[]>, curr: any) => {
+      const planDate = curr.plan_date;
       if (!planDate) return acc;
 
-      // KST로 변환
       const date = new Date(planDate);
       const kstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
       const originalDate = kstDate.toISOString().split('T')[0];
 
-      // 기간별 그룹화 키 생성
       let groupKey;
       switch (period) {
-        case 'yearly':
-          groupKey = `${kstDate.getFullYear()}`;
+        case 'yearly': 
+          groupKey = `${kstDate.getFullYear()}`; 
           break;
-        case 'monthly':
-          groupKey = `${kstDate.getFullYear()}-${String(kstDate.getMonth() + 1).padStart(2, '0')}`;
+        case 'monthly': 
+          groupKey = `${kstDate.getFullYear()}-${String(kstDate.getMonth() + 1).padStart(2, '0')}`; 
           break;
-        case 'daily':
-          groupKey = originalDate;
-          break;
+        case 'daily': 
         case 'custom':
-          groupKey = 'custom';
+          groupKey = originalDate; 
           break;
-        default:
+        default: 
           groupKey = originalDate;
       }
 
-      console.log('데이터 그룹화:', {
-        원본날짜: planDate,
-        KST변환날짜: kstDate.toISOString(),
-        그룹키: groupKey,
-        표시날짜: originalDate,
-      });
-
-      if (!acc[groupKey]) {
-        acc[groupKey] = {}
-      }
-      
-      const setid = curr.sales_plans?.set_products?.id;
-      if (!acc[groupKey][setid]) {
-        // 개별 상품 ID들을 배열로 변환
-        acc[groupKey][setid] = {
-          id: curr.id,
-          operation_count: 1,
-          sales_plan_id: curr.sales_plan_id,
-          performance: curr.performance,
-          achievement_rate: curr.achievement_rate,
-          temperature: curr.temperature,
-          xs_size: curr.xs_size,
-          s_size: curr.s_size,
-          m_size: curr.m_size,
-
-          l_size: curr.l_size,
-          xl_size: curr.xl_size,
-          xxl_size: curr.xxl_size,
-          fourxl_size: curr.fourxl_size,
-          sales_plan: {
-            id: curr.sales_plans.id,
-            season: curr.sales_plans.season,
-            plan_date: curr.sales_plans.plan_date,
-            plan_time: curr.sales_plans.plan_time,
-            channel_code: curr.sales_plans.channel_code,
-            channel_detail: curr.sales_plans.channel_detail,
-            product_category: curr.sales_plans.product_category,
-            product_name: curr.sales_plans.product_name,
-            product_summary: curr.sales_plans.product_summary,
-            quantity_composition: curr.sales_plans.quantity_composition,
-            set_id: curr.sales_plans.set_id,
-            product_code: curr.sales_plans.product_code,
-            sale_price: curr.sales_plans.sale_price,
-            commission_rate: curr.sales_plans.commission_rate,
-            target_quantity: curr.sales_plans.target_quantity,
-            channel_id: curr.sales_plans.channel_id,
-            set_product: {
-              set_id: curr.sales_plans.set_products.set_id,
-              set_name: curr.sales_plans.set_products.set_name,
-              individual_product_ids: curr.sales_plans.set_products.individual_product_ids,
-              remarks: curr.sales_plans.set_products.remarks,
-              created_at: curr.sales_plans.set_products.created_at,
-              updated_at: curr.sales_plans.set_products.updated_at,
-              is_active: curr.sales_plans.set_products.is_active
-            },
-            sales_channels: {
-              id: curr.sales_plans.sales_channels.id,
-              channel_code: curr.sales_plans.sales_channels.channel_code,
-              channel_detail: curr.sales_plans.sales_channels.channel_detail,
-              channel_name: curr.sales_plans.sales_channels.channel_name,
-              is_active: curr.sales_plans.sales_channels.is_active
-            }
-          }
-        };
-      }else {
-        // 기존 데이터에 수량 합산
-        acc[groupKey][setid].xs_size += (curr.xs_size || 0);
-        acc[groupKey][setid].s_size += (curr.s_size || 0);
-        acc[groupKey][setid].m_size += (curr.m_size || 0);
-        acc[groupKey][setid].l_size += (curr.l_size || 0);
-        acc[groupKey][setid].xl_size += (curr.xl_size || 0);
-        acc[groupKey][setid].xxl_size += (curr.xxl_size || 0);
-        acc[groupKey][setid].fourxl_size += (curr.fourxl_size || 0);
-        acc[groupKey][setid].operation_count += 1;
-        // acc[groupKey][setid].temperature = ((acc[groupKey][setid].temperature + (curr.temperature || 0)) /2 || 0);
-        // console.log("acc[groupKey][setid].temperature", acc[groupKey][setid].temperature ,curr.temperature);
-        acc[groupKey][setid].temperature = ((acc[groupKey][setid].temperature * (acc[groupKey][setid].operation_count - 1) + curr.temperature) / acc[groupKey][setid].operation_count);
-      }
-
-
-
-
+      if (!acc[groupKey]) acc[groupKey] = [];
+      acc[groupKey].push(curr);
       return acc;
     }, {});
 
-    const result = Object.entries(groupedStats).map(([date, planData]) => {
-      const groupedProducts = Object.values(planData).map(plan => {
-        // 전체 주문 수량 계산
-        const totalQuantity = (
-          (plan.xs_size || 0) +
-          (plan.s_size || 0) +
-          (plan.m_size || 0) +
-          (plan.l_size || 0) +
-          (plan.xl_size || 0) +
-          (plan.xxl_size || 0) +
-          (plan.fourxl_size || 0)
-        );
-    
-        return {
-          product_name: plan.sales_plan.set_product.set_name,
-          set_product_code: plan.sales_plan.set_product.set_id.toString(),
-          temperature: plan.temperature,
-          operation_count: plan.operation_count, // 초기 방송 횟수 설정
-          // 실제 주문 수량
-          xs_size: plan.xs_size || 0,
-          s_size: plan.s_size || 0,
-          m_size: plan.m_size || 0,
-          l_size: plan.l_size || 0,
-          xl_size: plan.xl_size || 0,
-          xxl_size: plan.xxl_size || 0,
-          fourxl_size: plan.fourxl_size || 0,
-          // 사이즈별 아소트 (%)
-          xs_assort: Number(((totalQuantity > 0 ? ((plan.xs_size || 0) / totalQuantity) * 100 : 0)).toFixed(1)),
-          s_assort: Number(((totalQuantity > 0 ? ((plan.s_size || 0) / totalQuantity) * 100 : 0)).toFixed(1)),
-          m_assort: Number(((totalQuantity > 0 ? ((plan.m_size || 0) / totalQuantity) * 100 : 0)).toFixed(1)),
-          l_assort: Number(((totalQuantity > 0 ? ((plan.l_size || 0) / totalQuantity) * 100 : 0)).toFixed(1)),
-          xl_assort: Number(((totalQuantity > 0 ? ((plan.xl_size || 0) / totalQuantity) * 100 : 0)).toFixed(1)),
-          xxl_assort: Number(((totalQuantity > 0 ? ((plan.xxl_size || 0) / totalQuantity) * 100 : 0)).toFixed(1)),
-          fourxl_assort: Number(((totalQuantity > 0 ? ((plan.fourxl_size || 0) / totalQuantity) * 100 : 0)).toFixed(1))
-        } as IAssortStatistics;
-      }).reduce((acc: Record<string, IAssortStatistics>, curr) => {
-        const key = curr.set_product_code;
+    // 2. 각 기간 내에서 상품(set_item_code)별로 그룹화하여 합산
+    const result = Object.entries(groupedByPeriod).reduce((acc, [date, items]: [string, any[]]) => {
+      const productStats = items.reduce((prodAcc: Record<string, any>, curr: any) => {
+        const itemCode = curr.set_item_code || 'unknown';
         
-        if (!acc[key]) {
-          acc[key] = curr;
+        if (!prodAcc[itemCode]) {
+          prodAcc[itemCode] = {
+            product_name: curr.product_name || '-',
+            set_product_code: itemCode,
+            operation_count: 1,
+            size_85: Number(curr.size_85 || 0),
+            size_90: Number(curr.size_90 || 0),
+            size_95: Number(curr.size_95 || 0),
+            size_100: Number(curr.size_100 || 0),
+            size_105: Number(curr.size_105 || 0),
+            size_110: Number(curr.size_110 || 0),
+            size_115: Number(curr.size_115 || 0),
+            size_120: Number(curr.size_120 || 0),
+          };
         } else {
-          // 사이즈별 수량 합산
-          acc[key].xs_size += curr.xs_size;
-          acc[key].s_size += curr.s_size;
-          acc[key].m_size += curr.m_size;
-          acc[key].l_size += curr.l_size;
-          acc[key].xl_size += curr.xl_size;
-          acc[key].xxl_size += curr.xxl_size;
-          acc[key].fourxl_size += curr.fourxl_size;
-          
-          
-          
-
-          // 전체 수량 재계산
-          const totalQuantity = (
-            acc[key].xs_size +
-            acc[key].s_size +
-            acc[key].m_size +
-            acc[key].l_size +
-            acc[key].xl_size +
-            acc[key].xxl_size +
-            acc[key].fourxl_size
-          );
-
-          // 아소트 비율 재계산
-          acc[key].xs_assort = Number(((totalQuantity > 0 ? (acc[key].xs_size / totalQuantity) * 100 : 0)).toFixed(1));
-          acc[key].s_assort = Number(((totalQuantity > 0 ? (acc[key].s_size / totalQuantity) * 100 : 0)).toFixed(1));
-          acc[key].m_assort = Number(((totalQuantity > 0 ? (acc[key].m_size / totalQuantity) * 100 : 0)).toFixed(1));
-          acc[key].l_assort = Number(((totalQuantity > 0 ? (acc[key].l_size / totalQuantity) * 100 : 0)).toFixed(1));
-          acc[key].xl_assort = Number(((totalQuantity > 0 ? (acc[key].xl_size / totalQuantity) * 100 : 0)).toFixed(1));
-          acc[key].xxl_assort = Number(((totalQuantity > 0 ? (acc[key].xxl_size / totalQuantity) * 100 : 0)).toFixed(1));
-          acc[key].fourxl_assort = Number(((totalQuantity > 0 ? (acc[key].fourxl_size / totalQuantity) * 100 : 0)).toFixed(1));
-
-          
-          
+          prodAcc[itemCode].size_85 += Number(curr.size_85 || 0);
+          prodAcc[itemCode].size_90 += Number(curr.size_90 || 0);
+          prodAcc[itemCode].size_95 += Number(curr.size_95 || 0);
+          prodAcc[itemCode].size_100 += Number(curr.size_100 || 0);
+          prodAcc[itemCode].size_105 += Number(curr.size_105 || 0);
+          prodAcc[itemCode].size_110 += Number(curr.size_110 || 0);
+          prodAcc[itemCode].size_115 += Number(curr.size_115 || 0);
+          prodAcc[itemCode].size_120 += Number(curr.size_120 || 0);
+          prodAcc[itemCode].operation_count += 1;
         }
-        return acc;
+        return prodAcc;
       }, {});
-    
-      return {
-        [date]: Object.values(groupedProducts)
-      };
-    }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
-       // 날짜 기준 내림차순 정렬
-      // result.sort((a, b) => b.date.localeCompare(a.date));
-    
-        return NextResponse.json(result);
-    } catch (error) {
-        console.error('API 에러:', error);
-        return NextResponse.json(
-          { error: '통계 조회 중 오류가 발생했습니다.' },
-          { status: 500 }
-      );
-    }
-  } 
+
+      // 3. 합산된 데이터를 바탕으로 최종 아소트 비율 및 총수량 계산
+      const products = Object.values(productStats).map((p: any) => {
+        const totalQty = p.size_85 + p.size_90 + p.size_95 + p.size_100 + p.size_105 + p.size_110 + p.size_115 + p.size_120;
+        
+        return {
+          product_name: p.product_name,
+          set_product_code: p.set_product_code,
+          operation_count: p.operation_count,
+          total_qty: totalQty,
+          size_85: p.size_85,
+          size_90: p.size_90,
+          size_95: p.size_95,
+          size_100: p.size_100,
+          size_105: p.size_105,
+          size_110: p.size_110,
+          size_115: p.size_115,
+          size_120: p.size_120,
+          assort_85: totalQty > 0 ? Number(((p.size_85 / totalQty) * 100).toFixed(1)) : 0,
+          assort_90: totalQty > 0 ? Number(((p.size_90 / totalQty) * 100).toFixed(1)) : 0,
+          assort_95: totalQty > 0 ? Number(((p.size_95 / totalQty) * 100).toFixed(1)) : 0,
+          assort_100: totalQty > 0 ? Number(((p.size_100 / totalQty) * 100).toFixed(1)) : 0,
+          assort_105: totalQty > 0 ? Number(((p.size_105 / totalQty) * 100).toFixed(1)) : 0,
+          assort_110: totalQty > 0 ? Number(((p.size_110 / totalQty) * 100).toFixed(1)) : 0,
+          assort_115: totalQty > 0 ? Number(((p.size_115 / totalQty) * 100).toFixed(1)) : 0,
+          assort_120: totalQty > 0 ? Number(((p.size_120 / totalQty) * 100).toFixed(1)) : 0,
+        };
+      });
+
+      acc[date] = products;
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('API 에러:', error);
+    return NextResponse.json({ error: '통계 조회 중 오류가 발생했습니다.' }, { status: 500 });
+  }
+}

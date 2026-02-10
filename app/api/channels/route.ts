@@ -12,7 +12,6 @@ export async function GET(request: Request) {
     let query = supabase
       .from('sales_channels')
       .select('*', { count: 'exact' })
-      .eq('is_active', true)
       .order('channel_code', { ascending: true });
 
     if (searchTerm && searchFields.length > 0) {
@@ -84,7 +83,7 @@ export async function DELETE(request: Request) {
 
     const { error } = await supabase
       .from('sales_channels')
-      .update({ is_active: false })
+      .delete()
       .eq('channel_code', code);
 
     if (error) throw error;
@@ -106,29 +105,20 @@ export async function POST(request: Request) {
     const channel = await request.json();
 
     // 필수 필드 검증
-    if (!channel.channel_code || !channel.channel_name || !channel.channel_details) {
+    if (!channel.channel_code || !channel.channel_name) {
       return NextResponse.json(
         { error: '필수 정보가 누락되었습니다.' },
         { status: 400 }
       );
     }
 
-    // PostgreSQL 배열 형식으로 변환
-    const channelDetailsArray = channel.channel_details;
-      // .split(',')
-      // .map((detail: string) => detail.trim())
-      // .filter(Boolean);
-    
-    const formattedChannelDetails = `{${channelDetailsArray.map((detail: string) => `"${detail}"`).join(',')}}`;
-
     const { data, error } = await supabase
       .from('sales_channels')
       .insert([{
         channel_code: channel.channel_code,
         channel_name: channel.channel_name,
-        channel_details: formattedChannelDetails,
-        remarks: channel.remarks || '',
-        is_active: true
+        channel_details: [],
+        remarks: channel.remarks || ''
       }])
       .select()
       .single();

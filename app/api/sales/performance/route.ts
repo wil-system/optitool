@@ -16,8 +16,7 @@ export async function GET(request: Request) {
     // 실적이 등록된 sales_plan_id 목록 조회
     const { data: performanceData } = await supabase
       .from('sales_performance')
-      .select('sales_plan_id')
-      .eq('is_active', true);
+      .select('sales_plan_id');
 
     const registeredPlanIds = performanceData?.map(item => item.sales_plan_id) || [];
 
@@ -32,7 +31,6 @@ export async function GET(request: Request) {
         `plan_date.lt.${today},` +
         `and(plan_date.eq.${today},plan_time.lt.${currentTime})`
       )
-      .eq('is_active', true)
       .eq('is_undecided', false)
       .not('id', 'in', `(${registeredPlanIds.join(',')})`)
       .order('plan_date', { ascending: false })
@@ -49,8 +47,7 @@ export async function GET(request: Request) {
       const { data: setData } = await supabase
         .from('set_products')
         .select('id, set_id, set_name')
-        .in('id', setIds)  // sales_plans의 set_id는 set_products의 id를 참조
-        .eq('is_active', true);
+        .in('id', setIds);  // sales_plans의 set_id는 set_products의 id를 참조
       setProducts = setData || [];
     }
 
@@ -116,8 +113,7 @@ export async function POST(request: Request) {
         fourxl_size,
         us_order: usOrder,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        is_active: true
+        updated_at: new Date().toISOString()
       })
       .select()
       .single();

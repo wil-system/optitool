@@ -124,7 +124,7 @@ const ChannelRegistrationPage = () => {
                     }}
                     maxLength={6}
                     required
-                    placeholder="숫자 6자리"
+                    placeholder=""
                     className="w-24 px-3 py-2 border border-gray-300 rounded-md text-center"
                   />
                 </div>

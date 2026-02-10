@@ -32,7 +32,6 @@ export async function GET(request: NextRequest) {
           channel_details
         )
       `, { count: 'exact' })
-      .eq('is_active', true)
       .or(`plan_date.gt.${today},and(plan_date.eq.${today},plan_time.gte.${currentTime}),is_undecided.eq.true`);
 
     const { data: plans, error, count } = await query;
@@ -45,8 +44,7 @@ export async function GET(request: NextRequest) {
       const { data: setData } = await supabase
         .from('set_products')
         .select('id, set_id , set_name , remarks')
-        .in('id', setIds)
-        .eq('is_active', true);
+        .in('id', setIds);
       setProducts = setData || [];
     }
 
@@ -103,7 +101,6 @@ export async function POST(request: Request) {
       .from('sales_plans')
       .insert([{ 
         ...data, 
-        is_active: true,
         is_undecided: data.is_undecided || false,
         created_at: new Date().toISOString()
       }]);
