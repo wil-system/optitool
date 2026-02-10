@@ -15,7 +15,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "OptiTool - 방송 판매 관리 시스템",
+  title: "라페어 운영관리 시스템",
   description: "방송 판매 관리, 재고, 통계를 위한 통합 솔루션",
 };
 
