@@ -8,8 +8,8 @@ import OperationalQuantityClient from '@/app/dashboard/operational-quantity/Oper
 export default function OperationalQuantityPage() {
   return (
     <DashboardLayout>
-      <div className="p-6">
-        <h1 className="text-2xl font-semibold mb-6">운영가능 수량</h1>
+      <div>
+      
         <Suspense fallback={<LoadingSpinner />}>
           <OperationalQuantityClient />
         </Suspense>
