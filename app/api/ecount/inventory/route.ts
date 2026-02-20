@@ -97,7 +97,7 @@ export async function GET(request: Request) {
     const invStatusStr = invStatus != null ? String(invStatus) : '';
     const invCodeStr = invCode != null ? String(invCode) : '';
 
-    if (invStatusStr !== '200' ) {
+    if (invStatusStr !== '200') {
       throw new Error(
         `재고 조회 코드 에러. status=${invStatusStr}, code=${invCodeStr}, message=${response.Data?.Message}`,
       );
@@ -149,29 +149,64 @@ export async function GET(request: Request) {
       rowCount: transformedData.length,
     });
 
-    const { data, error } = await supabase
+    // 1. DB에 이미 존재하는 상품 전체 정보 조회 (Not-Null 제약 조건 해결 및 기존 데이터 보존용)
+    const { data: existingProducts, error: selectError } = await supabase
       .from('inventory_history')
-      .upsert(
-        transformedData.map((item) => ({
-          product_code: item.product_code,
-          item_number: item.item_number, // item_number 필드 추가
-          product_name: item.product_name,
-          specification: item.specification,
+      .select('*');
+
+    if (selectError) {
+      console.error(`[${requestId}] DB 상품 조회 에러`, selectError);
+      throw selectError;
+    }
+
+    // 빠른 조회를 위해 Map 생성
+    const existingMap = new Map(existingProducts?.map((p) => [p.product_code, p]) || []);
+
+    // 2. 존재하는 상품에 대해서만 재고 수량 업데이트 데이터 병합
+    const updateData = transformedData
+      .filter((item) => existingMap.has(item.product_code))
+      .map((item) => {
+        const existing = existingMap.get(item.product_code);
+        return {
+          ...existing, // 기존 모든 컬럼(상품명, 규격, 바코드 등) 유지
           total: item.total,
           warehouse_106: item.warehouse_106,
           warehouse_3333: item.warehouse_3333,
           warehouse_12345: item.warehouse_12345,
           updated_at: new Date().toISOString(),
-        })),
-        {
+        };
+      });
+
+    console.log(`[${requestId}] 필터링 결과`, {
+      originalCount: transformedData.length,
+      updateCount: updateData.length,
+      ignoredCount: transformedData.length - updateData.length,
+    });
+
+    let finalData: any[] | null = null;
+    let finalError: any = null;
+
+    // 3. 필터링된 데이터가 있는 경우에만 업데이트 수행
+    if (updateData.length > 0) {
+      const { data: upsertData, error: upsertError } = await supabase
+        .from('inventory_history')
+        .upsert(updateData, {
           onConflict: 'product_code',
           ignoreDuplicates: false,
-        },
-      );
+        });
 
-    if (error) {
-      console.error(`[${requestId}] Supabase upsert 에러`, error);
-      throw error;
+      finalData = upsertData;
+      finalError = upsertError;
+
+      if (upsertError) {
+        console.error(`[${requestId}] Supabase update 에러`, upsertError);
+        throw upsertError;
+      }
+    }
+
+    if (finalError) {
+      console.error(`[${requestId}] Supabase upsert 에러`, finalError);
+      throw finalError;
     }
 
     console.log(`[${requestId}] 전체 프로세스 완료`);
@@ -181,11 +216,11 @@ export async function GET(request: Request) {
       message: `${transformedData.length}건의 데이터가 처리되었습니다.`,
       debug: debug
         ? {
-            requestId,
-            ecountStatus: invStatusStr,
-            ecountCode: invCodeStr,
-            ecountMessage: response.Data?.Message,
-          }
+          requestId,
+          ecountStatus: invStatusStr,
+          ecountCode: invCodeStr,
+          ecountMessage: response.Data?.Message,
+        }
         : undefined,
     });
   } catch (error) {
@@ -196,8 +231,8 @@ export async function GET(request: Request) {
         error: error instanceof Error ? error.message : '데이터 처리 중 오류가 발생했습니다.',
         debug: process.env.NODE_ENV === 'development'
           ? {
-              requestId,
-            }
+            requestId,
+          }
           : undefined,
       },
       { status: 500 },

@@ -43,7 +43,7 @@ export async function POST(request: Request) {
         'Accept': 'application/json',
       },
       body: JSON.stringify({
-        PROD_TYPE: "3" 
+        PROD_TYPE: "3"
       }),
     });
 
@@ -98,15 +98,15 @@ export async function POST(request: Request) {
     const nowIso = new Date().toISOString();
     await supabase
       .from('sync_settings')
-      .upsert({ 
-        key: 'ecount_product_sync', 
+      .upsert({
+        key: 'ecount_product_sync',
         last_sync_at: nowIso,
         updated_at: nowIso
       }, { onConflict: 'key' });
     console.log('[ECOUNT 동기화] 모든 프로세스 완료');
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: `ECOUNT 상품 데이터가 동기화되었습니다.`,
       last_sync_at: nowIso
     });
@@ -114,9 +114,9 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('ECOUNT 동기화 에러:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : '동기화 중 오류가 발생했습니다.' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : '동기화 중 오류가 발생했습니다.'
       },
       { status: 500 }
     );
