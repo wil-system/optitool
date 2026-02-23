@@ -81,7 +81,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
     try {
       setLoading(true);
       setError(null);
-      
+
       const params = new URLSearchParams({
         page: (currentPage - 1).toString(),
         size: '12',
@@ -92,17 +92,17 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
         setId: searchFilters.setId ? 'true' : 'false',
         excludeWithPerformance: 'true'
       });
-      
+
       const [plansResponse, channelsResponse, setsResponse] = await Promise.all([
         fetch(`/api/sales/plans/with-performance?${params}`),
         fetch('/api/channels?size=1000'), // 채널은 페이징 없이 충분히 많이 가져옴
         fetch('/api/sets?size=1000') // 세트 목록 가져오기
       ]);
-      
+
       if (!plansResponse.ok || !channelsResponse.ok || !setsResponse.ok) {
         throw new Error('데이터를 불러오는데 실패했습니다.');
       }
-      
+
       const [plansResult, channelsResult, setsResult] = await Promise.all([
         plansResponse.json(),
         channelsResponse.json(),
@@ -115,7 +115,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
       setTotalPages(plansResult.totalPages || 1);
       setChannels(channelsResult.data || []);
       setSets(setsResult.data || []);
-      
+
     } catch (err) {
       setError(err instanceof Error ? err : new Error('알 수 없는 오류가 발생했습니다'));
     } finally {
@@ -134,11 +134,11 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
 
   const handleDownloadTemplate = () => {
     const headers = [
-      "ID", "시즌년도", "시즌", "일자", "시작시간", "채널", "세트품번", "상품명", "추가구성", "추가품번", 
+      "ID", "시즌년도", "시즌", "일자", "시작시간", "채널", "세트품번", "상품명", "추가구성", "추가품번",
       "판매가", "수수료", "목표", "총주문수량", "순주문수량", "총매출", "순매출", "달성율", "미리주문%", "종합달성률%",
       "사이즈수량(85)", "사이즈수량(90)", "사이즈수량(95)", "사이즈수량(100)", "사이즈수량(105)", "사이즈수량(110)", "사이즈수량(115)", "사이즈수량(120)"
     ];
-    
+
     const exampleData = [
       [
         "", "2024", "SS", "2024-03-20", "10:00", "GS홈쇼핑", "SET-001", "예시 상품", "기본구성", "ITEM-001",
@@ -149,7 +149,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
     const ws = XLSX.utils.aoa_to_sheet([headers, ...exampleData]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '판매계획실적 양식');
-    
+
     const headerStyle = {
       fill: { fgColor: { rgb: "CCFFCC" } },
       font: { bold: true },
@@ -174,7 +174,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
     for (let C = range.s.c; C <= range.e.c; ++C) {
       const address = XLSX.utils.encode_col(C) + "1";
       if (!ws[address]) continue;
-      
+
       // "총주문수량" (인덱스 13) 부터 주황색 적용
       if (C >= 13) {
         ws[address].s = performanceHeaderStyle;
@@ -197,7 +197,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
       if (error) throw error;
 
       const headers = [
-        "ID", "시즌년도", "시즌", "일자", "시작시간", "채널", "세트품번", "상품명", "추가구성", "추가품번", 
+        "ID", "시즌년도", "시즌", "일자", "시작시간", "채널", "세트품번", "상품명", "추가구성", "추가품번",
         "판매가", "수수료", "목표", "총주문수량", "순주문수량", "총매출", "순매출", "달성율", "미리주문%", "종합달성률%",
         "사이즈수량(85)", "사이즈수량(90)", "사이즈수량(95)", "사이즈수량(100)", "사이즈수량(105)", "사이즈수량(110)", "사이즈수량(115)", "사이즈수량(120)"
       ];
@@ -236,7 +236,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
       for (let C = range.s.c; C <= range.e.c; ++C) {
         const address = XLSX.utils.encode_col(C) + "1";
         if (!ws[address]) continue;
-        
+
         // "총주문수량" (인덱스 13) 부터 주황색 적용
         if (C >= 13) {
           ws[address].s = performanceHeaderStyle;
@@ -291,7 +291,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
         if (row['일자']) {
           const dateValue = row['일자'];
           const dateStr = dateValue.toString();
-          
+
           // 날짜 형식이 유효한지 확인
           if (dateStr && isNaN(Date.parse(dateStr))) {
             errors.push(`${rowNum}행 [일자]: 날짜 형식이 올바르지 않습니다. (입력값: ${dateStr})`);
@@ -318,7 +318,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
             const sid = s.set_id?.toString().trim();
             return sid === setItemCode;
           });
-          
+
           if (matchingSet) {
             productName = matchingSet.set_name;
           } else {
@@ -329,37 +329,37 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
         // 날짜 변환 함수 (엑셀 시리얼 날짜를 YYYY-MM-DD 형식으로 변환)
         const convertExcelDate = (dateValue: any): string | null => {
           if (!dateValue) return null;
-          
+
           // 이미 문자열 형식인 경우 (YYYY-MM-DD 등)
           if (typeof dateValue === 'string') {
             // 날짜 구분자 통일 (., /, - 등을 - 로 변환)
             const normalized = dateValue.replace(/[./]/g, '-');
             const parsed = new Date(normalized);
             if (!isNaN(parsed.getTime())) {
-              return parsed.toISOString().split('T')[0];
+              return format(parsed, 'yyyy-MM-dd');
             }
             return normalized;
           }
-          
+
           // 엑셀 시리얼 날짜 (숫자)인 경우
           if (typeof dateValue === 'number') {
             const excelEpoch = new Date(1899, 11, 30);
             const jsDate = new Date(excelEpoch.getTime() + dateValue * 86400000);
-            return jsDate.toISOString().split('T')[0];
+            return format(jsDate, 'yyyy-MM-dd');
           }
-          
+
           // Date 객체인 경우
           if (dateValue instanceof Date) {
-            return dateValue.toISOString().split('T')[0];
+            return format(dateValue, 'yyyy-MM-dd');
           }
-          
+
           return null;
         };
 
         // 시간 변환 함수 (다양한 형식을 HH:MM:SS 형식으로 변환)
         const convertExcelTime = (timeValue: any): string | null => {
           if (!timeValue) return null;
-          
+
           // 문자열인 경우 (HH:MM, HH:MM:SS 등)
           if (typeof timeValue === 'string') {
             const cleaned = timeValue.trim();
@@ -373,7 +373,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
             }
             return cleaned;
           }
-          
+
           // 엑셀 시리얼 시간 (0~1 사이의 소수)인 경우
           if (typeof timeValue === 'number' && timeValue < 1) {
             const totalSeconds = Math.round(timeValue * 86400);
@@ -382,7 +382,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
             const seconds = totalSeconds % 60;
             return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
           }
-          
+
           return null;
         };
 
@@ -426,7 +426,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
 
       if (errors.length > 0) {
         // 에러가 너무 많으면 상위 10개만 표시
-        const displayErrors = errors.length > 10 
+        const displayErrors = errors.length > 10
           ? [...errors.slice(0, 10), `...외 ${errors.length - 10}건의 오류가 더 있습니다.`]
           : errors;
         setErrorMessage(displayErrors.join('\n'));
@@ -451,18 +451,18 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
           if (upsertError) {
             failCount++;
             console.log(`${rowNum}행 에러 상세:`, upsertError); // 디버깅용
-            
+
             // Supabase 에러 메시지 파싱하여 컬럼명 추출
             let errorDetail = upsertError.message;
             let columnName = '';
             let problemValue = '';
-            
+
             // 다양한 패턴으로 컬럼명 추출 시도
-            const columnMatch = 
-              errorDetail.match(/column "([^"]+)"/i) || 
+            const columnMatch =
+              errorDetail.match(/column "([^"]+)"/i) ||
               errorDetail.match(/Key \(([^)]+)\)/i) ||
               errorDetail.match(/for type ([^\s]+)/i);
-            
+
             if (columnMatch) {
               const dbColumn = columnMatch[1];
               // DB 컬럼명을 한글 필드명으로 매핑
@@ -480,7 +480,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
                 'id': 'ID'
               };
               columnName = columnMap[dbColumn] || dbColumn;
-              
+
               // 해당 컬럼의 실제 값 가져오기
               const dbColumnToDataKey: { [key: string]: string } = {
                 'plan_date': 'plan_date',
@@ -497,7 +497,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
                 problemValue = ` (입력값: ${rowData[dataKey]})`;
               }
             }
-            
+
             // 일반적인 DB 에러 메시지를 사용자 친화적으로 변환
             if (errorDetail.includes('duplicate key')) {
               errorDetail = columnName ? `[${columnName}] 중복된 값입니다.${problemValue}` : `ID가 중복되었습니다.${problemValue}`;
@@ -509,7 +509,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
               // "invalid input syntax for type uuid" 같은 메시지에서 타입 추출
               const typeMatch = errorDetail.match(/for (?:type )?(\w+)/i);
               const dataType = typeMatch ? typeMatch[1] : '';
-              
+
               if (dataType === 'uuid' || dataType === 'UUID') {
                 errorDetail = columnName ? `[${columnName}] UUID 형식이 올바르지 않습니다.${problemValue}` : `UUID 형식이 올바르지 않습니다.${problemValue}`;
               } else if (dataType === 'date') {
@@ -530,7 +530,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
               // 컬럼명을 추출하지 못한 경우 원본 에러 메시지 표시
               errorDetail = `${errorDetail}`;
             }
-            
+
             uploadErrors.push(`${rowNum}행: ${errorDetail}`);
           } else {
             successCount++;
@@ -546,7 +546,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
       // 결과 표시
       if (uploadErrors.length > 0) {
         const summary = `업로드 완료: 성공 ${successCount}건, 실패 ${failCount}건\n\n실패 사유:\n`;
-        const displayErrors = uploadErrors.length > 10 
+        const displayErrors = uploadErrors.length > 10
           ? [...uploadErrors.slice(0, 10), `...외 ${uploadErrors.length - 10}건의 오류가 더 있습니다.`]
           : uploadErrors;
         setErrorMessage(summary + displayErrors.join('\n'));
@@ -591,7 +591,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
 
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
-    
+
     try {
       const { error } = await supabase
         .from('sales_plans_with_performance')
@@ -617,7 +617,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
 
   const filteredPlans = data.filter(plan => {
     if (searchTerm === '') return true;
-    
+
     const searchValue = searchTerm.toLowerCase();
     return (
       (searchFilters.season && plan.season?.toLowerCase().includes(searchValue)) ||
@@ -759,7 +759,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
                         </svg>
                         양식 다운로드
                       </button>
-                      
+
                       <label
                         htmlFor="excel-upload"
                         className="w-full px-4 py-2.5 text-left text-sm text-foreground dark:text-gray-200 hover:bg-muted dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer transition-colors"
@@ -794,7 +794,7 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
                   </div>
                 )}
               </div>
-              
+
               <button
                 onClick={() => setIsRegistrationModalOpen(true)}
                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
@@ -824,8 +824,8 @@ export default function SalesPlanListClient({ initialData, channels: initialChan
               </thead>
               <tbody className="bg-card divide-y divide-border">
                 {data.map((plan) => (
-                  <tr 
-                    key={plan.id} 
+                  <tr
+                    key={plan.id}
                     className={`hover:bg-accent text-xs ${selectedPlan?.id === plan.id ? 'bg-blue-50 dark:bg-blue-950/30' : ''}`}
                   >
                     <td className="px-2 py-4 whitespace-nowrap overflow-hidden text-ellipsis">
