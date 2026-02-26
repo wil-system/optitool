@@ -64,6 +64,9 @@ export default function SalesPerformanceListClient({ initialData, channels: init
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const excelMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -82,7 +85,7 @@ export default function SalesPerformanceListClient({ initialData, channels: init
     try {
       setLoading(true);
       setError(null);
-      
+
       const params = new URLSearchParams({
         page: (currentPage - 1).toString(),
         size: '12',
@@ -93,16 +96,16 @@ export default function SalesPerformanceListClient({ initialData, channels: init
         setId: searchFilters.setId ? 'true' : 'false',
         onlyWithPerformance: 'true'
       });
-      
+
       const [plansResponse, channelsResponse] = await Promise.all([
         fetch(`/api/sales/plans/with-performance?${params}`),
         fetch('/api/channels?size=1000') // 채널은 페이징 없이 충분히 많이 가져옴
       ]);
-      
+
       if (!plansResponse.ok || !channelsResponse.ok) {
         throw new Error('데이터를 불러오는데 실패했습니다.');
       }
-      
+
       const [plansResult, channelsResult] = await Promise.all([
         plansResponse.json(),
         channelsResponse.json()
@@ -111,7 +114,7 @@ export default function SalesPerformanceListClient({ initialData, channels: init
       setData(plansResult.data || []);
       setTotalPages(plansResult.totalPages || 1);
       setChannels(channelsResult.data || []);
-      
+
     } catch (err) {
       setError(err instanceof Error ? err : new Error('알 수 없는 오류가 발생했습니다'));
     } finally {
@@ -130,11 +133,11 @@ export default function SalesPerformanceListClient({ initialData, channels: init
 
   const handleDownloadTemplate = () => {
     const headers = [
-      "ID", "시즌년도", "시즌", "일자", "시작시간", "채널", "세트품번", "상품명", "추가구성", "추가품번", 
+      "ID", "시즌년도", "시즌", "일자", "시작시간", "채널", "세트품번", "상품명", "추가구성", "추가품번",
       "판매가", "수수료", "목표", "총주문수량", "순주문수량", "총매출", "순매출", "달성율", "미리주문%", "종합달성률%",
       "사이즈수량(85)", "사이즈수량(90)", "사이즈수량(95)", "사이즈수량(100)", "사이즈수량(105)", "사이즈수량(110)", "사이즈수량(115)", "사이즈수량(120)"
     ];
-    
+
     const exampleData = [
       [
         "", "2024", "SS", "2024-03-20", "10:00", "GS홈쇼핑", "SET-001", "예시 상품", "기본구성", "ITEM-001",
@@ -145,7 +148,7 @@ export default function SalesPerformanceListClient({ initialData, channels: init
     const ws = XLSX.utils.aoa_to_sheet([headers, ...exampleData]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '판매계획실적 양식');
-    
+
     const headerStyle = {
       fill: { fgColor: { rgb: "CCFFCC" } },
       font: { bold: true },
@@ -170,7 +173,7 @@ export default function SalesPerformanceListClient({ initialData, channels: init
     for (let C = range.s.c; C <= range.e.c; ++C) {
       const address = XLSX.utils.encode_col(C) + "1";
       if (!ws[address]) continue;
-      
+
       // "총주문수량" (인덱스 13) 부터 주황색 적용
       if (C >= 13) {
         ws[address].s = performanceHeaderStyle;
@@ -193,7 +196,7 @@ export default function SalesPerformanceListClient({ initialData, channels: init
       if (error) throw error;
 
       const headers = [
-        "ID", "시즌년도", "시즌", "일자", "시작시간", "채널", "세트품번", "상품명", "추가구성", "추가품번", 
+        "ID", "시즌년도", "시즌", "일자", "시작시간", "채널", "세트품번", "상품명", "추가구성", "추가품번",
         "판매가", "수수료", "목표", "총주문수량", "순주문수량", "총매출", "순매출", "달성율", "미리주문%", "종합달성률%",
         "사이즈수량(85)", "사이즈수량(90)", "사이즈수량(95)", "사이즈수량(100)", "사이즈수량(105)", "사이즈수량(110)", "사이즈수량(115)", "사이즈수량(120)"
       ];
@@ -232,7 +235,7 @@ export default function SalesPerformanceListClient({ initialData, channels: init
       for (let C = range.s.c; C <= range.e.c; ++C) {
         const address = XLSX.utils.encode_col(C) + "1";
         if (!ws[address]) continue;
-        
+
         // "총주문수량" (인덱스 13) 부터 주황색 적용
         if (C >= 13) {
           ws[address].s = performanceHeaderStyle;
@@ -317,7 +320,7 @@ export default function SalesPerformanceListClient({ initialData, channels: init
 
       if (errors.length > 0) {
         // 에러가 너무 많으면 상위 10개만 표시
-        const displayErrors = errors.length > 10 
+        const displayErrors = errors.length > 10
           ? [...errors.slice(0, 10), `...외 ${errors.length - 10}건의 오류가 더 있습니다.`]
           : errors;
         setErrorMessage(displayErrors.join('\n'));
@@ -366,7 +369,7 @@ export default function SalesPerformanceListClient({ initialData, channels: init
 
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
-    
+
     try {
       const { error } = await supabase
         .from('sales_plans_with_performance')
@@ -381,6 +384,52 @@ export default function SalesPerformanceListClient({ initialData, channels: init
     } catch (error) {
       console.error('Error:', error);
       alert('삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) {
+      alert('삭제할 항목을 선택해주세요.');
+      return;
+    }
+    setIsBulkDeleteModalOpen(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    try {
+      const { error } = await supabase
+        .from('sales_plans_with_performance')
+        .delete()
+        .in('id', Array.from(selectedIds));
+
+      if (error) throw error;
+
+      setIsBulkDeleteModalOpen(false);
+      setIsDeleteMode(false);
+      setSelectedIds(new Set());
+      setShowSuccessModal(true);
+      fetchData();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  const toggleSelectItem = (id: string) => {
+    const newSelectedIds = new Set(selectedIds);
+    if (newSelectedIds.has(id)) {
+      newSelectedIds.delete(id);
+    } else {
+      newSelectedIds.add(id);
+    }
+    setSelectedIds(newSelectedIds);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === data.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(data.map(plan => plan.id)));
     }
   };
 
@@ -409,7 +458,7 @@ export default function SalesPerformanceListClient({ initialData, channels: init
 
   const filteredPlans = data.filter(plan => {
     if (searchTerm === '') return true;
-    
+
     const searchValue = searchTerm.toLowerCase();
     return (
       (searchFilters.season && plan.season?.toLowerCase().includes(searchValue)) ||
@@ -521,6 +570,40 @@ export default function SalesPerformanceListClient({ initialData, channels: init
                 검색
               </button>
 
+              {/* 삭제 버튼 이동 */}
+              <div className="border-l border-border pl-4 flex gap-2">
+                {!isDeleteMode ? (
+                  <button
+                    onClick={() => {
+                      setIsDeleteMode(true);
+                      setExpandedRows(new Set());
+                    }}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium transition-all shadow-sm"
+                  >
+                    삭제
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setIsDeleteMode(false);
+                        setSelectedIds(new Set());
+                      }}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm font-medium transition-all shadow-sm"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={handleBulkDelete}
+                      disabled={selectedIds.size === 0}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium transition-all shadow-sm disabled:opacity-50"
+                    >
+                      모두 삭제
+                    </button>
+                  </>
+                )}
+              </div>
+
               {/* 엑셀 통합 버튼 및 드롭다운 */}
               <div className="relative border-l border-border pl-4" ref={excelMenuRef}>
                 {/* <button
@@ -551,7 +634,7 @@ export default function SalesPerformanceListClient({ initialData, channels: init
                         </svg>
                         양식 다운로드
                       </button>
-                      
+
                       <label
                         htmlFor="excel-upload"
                         className="w-full px-4 py-2.5 text-left text-sm text-foreground dark:text-gray-200 hover:bg-muted dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer transition-colors"
@@ -586,7 +669,7 @@ export default function SalesPerformanceListClient({ initialData, channels: init
                   </div>
                 )}
               </div>
-              
+
               {/* <button
                 onClick={() => setIsRegistrationModalOpen(true)}
                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
@@ -596,33 +679,62 @@ export default function SalesPerformanceListClient({ initialData, channels: init
             </div>
           </div>
 
+          {/* 전체 선택 (삭제 모드일 때만 표시) */}
+          {isDeleteMode && (
+            <div className="px-4 py-2 bg-muted/50 border-b border-border flex items-center gap-2">
+              <label className="inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === data.length && data.length > 0}
+                  onChange={handleSelectAll}
+                  className="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 transition duration-150 ease-in-out"
+                />
+                <span className="ml-2 text-sm font-medium text-foreground">전체선택 ({selectedIds.size}개 선택됨)</span>
+              </label>
+            </div>
+          )}
+
           {/* 카드형 리스트 */}
           <div className="p-4 space-y-3">
             {data.map((plan) => {
               const isExpanded = expandedRows.has(plan.id);
               const achievementRate = plan.achievement_rate || 0;
-              
+
               return (
-                <div 
-                  key={plan.id} 
+                <div
+                  key={plan.id}
                   className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
                 >
                   {/* 기본 정보 행 */}
-                  <div 
+                  <div
                     className="flex items-center p-4 cursor-pointer hover:bg-muted"
-                    onClick={() => toggleRow(plan.id)}
+                    onClick={() => isDeleteMode ? toggleSelectItem(plan.id) : toggleRow(plan.id)}
                   >
+                    {/* 삭제 모드일 때의 체크박스 */}
+                    {isDeleteMode && (
+                      <div className="flex-shrink-0 mr-4" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(plan.id)}
+                          onChange={() => toggleSelectItem(plan.id)}
+                          className="form-checkbox h-5 w-5 text-red-600 rounded border-gray-300 transition duration-150 ease-in-out"
+                        />
+                      </div>
+                    )}
+
                     {/* 확장 아이콘 */}
-                    <div className="flex-shrink-0 mr-3">
-                      <svg 
-                        className={`w-5 h-5 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
+                    {!isDeleteMode && (
+                      <div className="flex-shrink-0 mr-3">
+                        <svg
+                          className={`w-5 h-5 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    )}
 
                     {/* 핵심 정보 */}
                     <div className="flex-1 flex items-center text-sm min-w-0">
@@ -828,14 +940,14 @@ export default function SalesPerformanceListClient({ initialData, channels: init
                             { label: '115(3XL)', value: plan.size_115 || 0 },
                             { label: '120(4XL)', value: plan.size_120 || 0 },
                           ].map((size, idx) => {
-                            const total = (plan.size_85 || 0) + (plan.size_90 || 0) + (plan.size_95 || 0) + 
-                                        (plan.size_100 || 0) + (plan.size_105 || 0) + (plan.size_110 || 0) + 
-                                        (plan.size_115 || 0) + (plan.size_120 || 0);
+                            const total = (plan.size_85 || 0) + (plan.size_90 || 0) + (plan.size_95 || 0) +
+                              (plan.size_100 || 0) + (plan.size_105 || 0) + (plan.size_110 || 0) +
+                              (plan.size_115 || 0) + (plan.size_120 || 0);
                             const percentage = total > 0 ? ((size.value / total) * 100).toFixed(1) : '0.0';
 
                             return (
-                              <div 
-                                key={idx} 
+                              <div
+                                key={idx}
                                 className="text-center p-3 rounded-lg border-2 transition-all bg-muted border-border"
                               >
                                 <div className="text-xs font-bold mb-1 text-muted-foreground">
@@ -915,6 +1027,14 @@ export default function SalesPerformanceListClient({ initialData, channels: init
         onConfirm={confirmDelete}
         title="판매계획 삭제"
         description={`정말로 이 판매계획을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+      />
+
+      <DeleteConfirmModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={confirmBulkDelete}
+        title="선택 항목 삭제"
+        description={`선택한 ${selectedIds.size}개의 항목을 정말로 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
       />
 
       <SuccessModal
